@@ -60,3 +60,13 @@ test('invisible formatting characters are removed from model categories',async()
  const ai=createAiOrganizer({runtimeFactory:()=>({...runtime(),generate:async({entry})=>({raw:JSON.stringify({fileId:entry.id,category:'Tax​es‮',stem:'invoice',reason:'Invoice.',sufficient:true})})}),extractor:async entry=>({fileId:entry.id,text,status:'text',truncated:false,evidence:'Text'})});
  assert.equal((await ai.analyze({inventory:createInventory([new File([text],'a.txt')]),rules:defaultRules(),guide:'',revision:'one'})).suggestions[0].category,'Taxes');
 });
+test('the model receives file metadata, categories and only included batch names; topics are cleaned',async()=>{
+ const {createAiOrganizer}=await import('../public/ai/organize.js');const text='Software requirements specification for the Harbor inventory system with stock tracking and supplier reports.';const seen=[];
+ const ai=createAiOrganizer({runtimeFactory:()=>({...runtime(),generate:async args=>{seen.push(args);return {raw:JSON.stringify({fileId:args.entry.id,category:'Projects',topic:'Har​bor ',stem:'harbor-spec',reason:'Spec.',sufficient:true})};}}),extractor:async entry=>({fileId:entry.id,text,status:'text',truncated:false,evidence:'Text'})});
+ const spec=new File([text],'spec.json',{lastModified:Date.UTC(2026,9,1)});Object.defineProperty(spec,'webkitRelativePath',{value:'work/harbor/spec.json'});
+ const inventory=createInventory([spec,new File([text],'notes.txt'),new File(['secret'],'private-salary.txt')]);
+ const result=await ai.analyze({inventory,rules:defaultRules(),exclusions:{excludedIds:[inventory.entries[2].id]},guide:'',revision:'one',categories:['Projects','Invoices']});
+ assert.equal(seen[0].entry.folder,'work/harbor');assert.equal(seen[0].entry.extension,'.json');assert.equal(seen[0].entry.size,text.length);assert.equal(seen[0].entry.modified,'2026-10-01');assert.deepEqual(seen[0].categories,['Projects','Invoices']);
+ assert.deepEqual(seen[0].otherFiles,['notes.txt']);assert.ok(seen.every(args=>!JSON.stringify(args).includes('private-salary')));
+ assert.equal(result.suggestions[0].topic,'Harbor');
+});

@@ -7,13 +7,14 @@ import {CATEGORIES,validateGuidance,validateSuggestion} from './schema.js';
 export const MODEL_ID='Qwen2.5-1.5B-Instruct-q4f16_1-MLC';
 // Spell near-matches of a preferred category the list's way (case, spacing, singular/plural); keep any other category as written.
 const categoryKey=value=>value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu,'').replace(/s$/,'');
-const PREFERRED=new Map(CATEGORIES.map(name=>[categoryKey(name),name]));
 // Invisible formatting characters (zero-width, bidi overrides) could make two folders look identical in review.
-const preferredCategory=category=>{const visible=category.replace(/\p{Cf}/gu,'').trim()||'Other';return PREFERRED.get(categoryKey(visible))||visible;};
+const visibleText=value=>value.replace(/\p{Cf}/gu,'').replace(/\s+/g,' ').trim();
+const preferredCategory=(category,preferred)=>{const visible=visibleText(category)||'Other';return preferred.get(categoryKey(visible))||visible;};
+const modifiedDate=time=>Number.isFinite(time)?new Date(time).toISOString().slice(0,10):'';
 export function createAiOrganizer({runtimeFactory=createLocalRuntime,extractor=extractContent}={}) {
  let active=null;
  return {
-  async analyze({inventory,rules,exclusions={},guide='',revision},{signal,onProgress=()=>{},onGuideReview}={}) {
+  async analyze({inventory,rules,exclusions={},guide='',revision,categories=CATEGORIES},{signal,onProgress=()=>{},onGuideReview}={}) {
    if(active)throw new Error('AI analysis is already running.');const controller=new AbortController();active=controller;
    const abort=()=>controller.abort();signal?.addEventListener('abort',abort,{once:true});if(signal?.aborted)abort();
    const check=()=>{if(controller.signal.aborted)throw new Error('AI analysis canceled.');};let release,runtime;
@@ -38,6 +39,7 @@ export function createAiOrganizer({runtimeFactory=createLocalRuntime,extractor=e
     const selection=resolveIncluded(inventory,{excludedIds:[...(exclusions.excludedIds||[]),...extraIds],patterns});
     if(!selection.included.length)throw new Error('Include at least one file for AI analysis.');
     const suggestions=[],evidence=[];
+    const preferred=new Map(categories.map(name=>[categoryKey(name),name]));
     for(const entry of selection.included) {
      check();let content=await extractor(entry,{signal:controller.signal,onProgress});check();
      if(content.fileId!==entry.id)throw new Error('Extraction returned a different file ID.');
@@ -47,11 +49,13 @@ export function createAiOrganizer({runtimeFactory=createLocalRuntime,extractor=e
       onProgress({stage:'Understanding file',path:entry.sourcePath,completed:suggestions.length,total:selection.included.length});
       const alias=`f${suggestions.length+1}`;
       const confirmedGuide=guidance?`${guide}\nConfirmed grouping preference: ${guidance.grouping}\nConfirmed naming preference: ${guidance.naming}`:guide;
-      const result=await runtime.generate({kind:'file',guide:confirmedGuide,entry:{id:alias,name:entry.name},text:content.text,rules,revision});check();
+      // Only included files' names are shared as batch context; excluded files never reach the model.
+      const metadata={id:alias,name:entry.name,folder:entry.sourcePath.split('/').slice(0,-1).join('/'),extension:entry.extension,size:entry.size,modified:modifiedDate(entry.lastModified)};
+      const result=await runtime.generate({kind:'file',guide:confirmedGuide,entry:metadata,text:content.text,rules,categories,otherFiles:selection.included.filter(other=>other!==entry).map(other=>other.name),revision});check();
       const validated=validateSuggestion(result.raw,{fileId:alias});
        // Small models tend to copy run-on phrases; keep the model's words but in a short, consistent filename shape.
        const words=validated.stem.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean).slice(0,6);
-       suggestion=Object.freeze({...validated,fileId:entry.id,category:preferredCategory(validated.category),stem:words.length?words.join('-'):validated.stem});kind=suggestion.sufficient?(content.truncated||result.truncated?'truncated':'text'):'metadata';
+       suggestion=Object.freeze({...validated,fileId:entry.id,category:preferredCategory(validated.category,preferred),topic:visibleText(validated.topic),stem:words.length?words.join('-'):validated.stem});kind=suggestion.sufficient?(content.truncated||result.truncated?'truncated':'text'):'metadata';
      }
      const detail=String(content.evidence||'').replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,300),status=content.status;
      content=null;suggestions.push(suggestion);evidence.push({fileId:entry.id,kind,status,detail});
