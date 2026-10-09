@@ -4,6 +4,7 @@ import {checkAiCapabilities} from './capabilities.js';
 import {acquireExportLock} from '../transfer/resources.js';
 import {wildcardMatch} from '../organizer/inventory.js';
 import {filesFromDirectory,filesFromInput,saveModelFolder} from './model-folder.js';
+import {loadCategories,resetCategories,saveCategories} from '../organizer/categories.js';
 export function mountAiControls(root,{onModeChange,onBusy,onStatus}={}) {
  const $=selector=>root.querySelector(selector),removers=[];let active=null,disposed=false;
  const status=(message,error=false)=>{if(disposed)return;$('#ai-status').textContent=message;$('#ai-status').dataset.state=error?'error':'ready';};
@@ -17,6 +18,13 @@ export function mountAiControls(root,{onModeChange,onBusy,onStatus}={}) {
   catch(error){status(error.message,true);onStatus?.(error.message,true);}
   finally{try{await runtime?.unload();}catch{}runtime?.dispose();release?.();active=null;onBusy?.(null);}
  }
+ // Reading localStorage itself can throw when site data is blocked; categories then use defaults for this visit.
+ const storage=(()=>{try{return window.localStorage;}catch{return undefined;}})();
+ let categories=loadCategories(storage);
+ const showCategories=message=>{$('#category-list').value=categories.filter(name=>name!=='Other').join('\n');$('#category-status').textContent=message;};
+ showCategories('');
+ listen('#save-categories','click',()=>{try{categories=saveCategories(storage,$('#category-list').value);showCategories(`Saved ${categories.length} categories.`);}catch(error){$('#category-status').textContent=error.message;}});
+ listen('#reset-categories','click',()=>{categories=resetCategories(storage);showCategories('Restored the default categories.');});
  async function saveFolder() {
   if(active)return;if(!window.showDirectoryPicker){status('This browser cannot write folders. Use Chrome or Edge to save the model.',true);return;}
   let root;try{root=await window.showDirectoryPicker({id:'ai-organizer-model',mode:'readwrite'});}catch{return;}
@@ -51,7 +59,7 @@ export function mountAiControls(root,{onModeChange,onBusy,onStatus}={}) {
   isBusy:()=>!!active,
   async analyze(inputs) {
    if(active)throw new Error('Local AI is already running.');active=new AbortController();onBusy?.(active);const controller=active,organizer=createAiOrganizer();
-   try{const result=await organizer.analyze(inputs,{signal:controller.signal,onProgress:progress,onGuideReview:guidance=>guideReview(guidance,inputs,controller.signal)});status('AI proposal ready. Review it before approving.');return result;}
+   try{const result=await organizer.analyze({...inputs,categories},{signal:controller.signal,onProgress:progress,onGuideReview:guidance=>guideReview(guidance,inputs,controller.signal)});status('AI proposal ready. Review it before approving.');return result;}
    catch(error){status(error.message,true);throw error;}
    finally{organizer.dispose();active=null;onBusy?.(null);}
   },
