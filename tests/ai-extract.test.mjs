@@ -17,3 +17,7 @@ test('PDF timeout destroys a late parser without reading its pages',async()=>{
  await assert.rejects(()=>extractPdf(new File(['pdf'],'a.pdf'),{timeout:5,pdfFactory:async()=>{await delay(30);return {numPages:1,getPage:async()=>{pages++;return {getTextContent:async()=>({items:[]})};},destroy:async()=>{destroyed++;}};}}),/timed out/);
  await delay(50);assert.equal(pages,0);assert.equal(destroyed,1);
 });
+test('a canceled PDF parse leaves no unhandled rejection',async()=>{
+ const {extractPdf}=await import('../public/ai/pdf.js');const unhandled=[];const listener=error=>unhandled.push(error);process.on('unhandledRejection',listener);
+ try{await assert.rejects(()=>extractPdf(new File(['pdf'],'a.pdf'),{timeout:5,pdfFactory:async()=>{await delay(20);throw new Error('late parser failure');}}),/timed out/);await delay(50);assert.deepEqual(unhandled,[]);}finally{process.off('unhandledRejection',listener);}
+});

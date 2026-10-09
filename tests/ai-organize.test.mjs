@@ -50,3 +50,13 @@ test('GPU loss during generation fails the analysis, releases the runtime and al
  await assert.rejects(()=>ai.analyze({inventory,rules:defaultRules(),guide:'',revision:'one'}),/device was lost/);assert.equal(unloads,1);assert.equal(disposals,1);
  assert.equal((await ai.analyze({inventory,rules:defaultRules(),guide:'',revision:'two'})).suggestions.length,2);
 });
+test('too many combined exclusion patterns are refused before the guide review, with an actionable message',async()=>{
+ const {createAiOrganizer}=await import('../public/ai/organize.js');let reviews=0;const patterns=Array.from({length:20},(_,i)=>`skip${i}*`);
+ const ai=createAiOrganizer({runtimeFactory:()=>({...runtime(),generate:async()=>({raw:JSON.stringify({summary:'Skip',grouping:'subject',naming:'descriptive',exclusionPatterns:patterns,needsConfirmation:true,blockedReason:''})})})});
+ await assert.rejects(()=>ai.analyze({inventory:createInventory([new File(['x'],'a.txt')]),rules:{...defaultRules(),patterns:['*.tmp']},guide:'Skip many things',revision:'one'},{onGuideReview:async()=>{reviews++;return {confirmed:true};}}),/guide.*exclusion|shorten|fewer/i);assert.equal(reviews,0);
+});
+test('invisible formatting characters are removed from model categories',async()=>{
+ const {createAiOrganizer}=await import('../public/ai/organize.js');const text='Invoice from Acme Supplies for office paper and pens, total due at the end of the month, payment terms thirty days.';
+ const ai=createAiOrganizer({runtimeFactory:()=>({...runtime(),generate:async({entry})=>({raw:JSON.stringify({fileId:entry.id,category:'Tax​es‮',stem:'invoice',reason:'Invoice.',sufficient:true})})}),extractor:async entry=>({fileId:entry.id,text,status:'text',truncated:false,evidence:'Text'})});
+ assert.equal((await ai.analyze({inventory:createInventory([new File([text],'a.txt')]),rules:defaultRules(),guide:'',revision:'one'})).suggestions[0].category,'Taxes');
+});

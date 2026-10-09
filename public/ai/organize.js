@@ -8,7 +8,8 @@ export const MODEL_ID='Qwen2.5-1.5B-Instruct-q4f16_1-MLC';
 // Spell near-matches of a preferred category the list's way (case, spacing, singular/plural); keep any other category as written.
 const categoryKey=value=>value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu,'').replace(/s$/,'');
 const PREFERRED=new Map(CATEGORIES.map(name=>[categoryKey(name),name]));
-const preferredCategory=category=>PREFERRED.get(categoryKey(category))||category;
+// Invisible formatting characters (zero-width, bidi overrides) could make two folders look identical in review.
+const preferredCategory=category=>{const visible=category.replace(/\p{Cf}/gu,'').trim()||'Other';return PREFERRED.get(categoryKey(visible))||visible;};
 export function createAiOrganizer({runtimeFactory=createLocalRuntime,extractor=extractContent}={}) {
  let active=null;
  return {
@@ -27,6 +28,7 @@ export function createAiOrganizer({runtimeFactory=createLocalRuntime,extractor=e
      // A model may overlook exclusion intent. Every nonempty guide gets a
      // metadata-only inclusion review before any source content is read.
      if(guide.trim()) {
+      if(patterns.length+guidance.exclusionPatterns.length>20)throw new Error('The guide adds too many exclusion patterns (at most 20 in total with your rules). Use fewer or broader exclusions in the guide.');
       if(!onGuideReview)throw new Error('Confirm guide exclusions before reading files.');
       const review=await onGuideReview(guidance);check();if(!review?.confirmed)throw new Error('Guide review canceled. No files were analyzed.');extraIds=review.excludedIds||[];
      }

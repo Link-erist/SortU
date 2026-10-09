@@ -25,6 +25,7 @@ export async function extractPdf(file,{signal,pdfFactory,timeout=30000}={}) {
   return await Promise.race([operation,interrupted]);
  }finally {
   stopped=true;clearTimeout(timer);signal?.removeEventListener('abort',abort);
+  if(!loading)worker?.destroy();
   if(loading){let cleanupTimer;try{await Promise.race([loading.destroy().catch(()=>{}),new Promise(resolve=>{cleanupTimer=setTimeout(resolve,250);})]);}finally{clearTimeout(cleanupTimer);worker?.destroy();}}
   else if(document)await destroyDocument(document);
  }
