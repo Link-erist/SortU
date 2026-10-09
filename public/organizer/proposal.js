@@ -56,7 +56,7 @@ export function createOrganizerSession() {
         if(!row.included)return row;const suggestion=byId.get(row.fileId),entry=inputs.inventory.entries.find(e=>e.id===row.fileId),kind=evidence.find(e=>e.fileId===row.fileId).kind;
         let target=row.targetPath;
         if(suggestion.sufficient){const parts=target.split('/');if(!manual.has('naming'))parts[parts.length-1]=safeSegment(suggestion.stem,true)+entry.extension;
-          if(!manual.has('groupBy')&&inputs.rules.groupBy==='type')parts.splice(0,parts.length-1,safeSegment(suggestion.category));target=parts.join('/');}
+          if(!manual.has('groupBy')&&inputs.rules.groupBy==='type')parts.splice(0,parts.length-1,...[suggestion.category,suggestion.topic].filter(Boolean).map(part=>safeSegment(part)));target=parts.join('/');}
         target=keepBoth(target,used);used.push(target);
         const outcome=evidence.find(item=>item.fileId===row.fileId);
         return {...row,targetPath:target,operation:target===entry.sourcePath?'unchanged':'organize',reason:kind==='metadata'?`${row.reason} Metadata-only fallback. ${outcome.detail||''}`.trimEnd():`AI based on ${kind==='truncated'?'a truncated excerpt':'extracted text'}. ${suggestion.reason}`};

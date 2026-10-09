@@ -95,3 +95,10 @@ test('the merge step is skipped when there is nothing to merge',async()=>{
  const ai=createAiOrganizer({runtimeFactory:topicRuntime(topics,{merges:[]},calls),extractor:async entry=>({fileId:entry.id,text:longText(entry.name),status:'text',truncated:false,evidence:'Text'})});
  await ai.analyze({inventory:createInventory(Object.keys(topics).map(name=>new File([longText(name)],name))),rules:defaultRules(),guide:'',revision:'one'});assert.equal(calls.some(args=>args.kind==='merge'),false);
 });
+test('AI proposals place files in Category/Topic folders; files without a topic stay one level deep',async()=>{
+ const session=createOrganizerSession(),inventory=createInventory([new File(['a'],'a.json'),new File(['b'],'b.txt'),new File(['c'],'c.txt')]);session.setInputs({inventory,rules:defaultRules()});
+ const ticket=session.beginAnalysis({modelId:'model',guideDigest:'',manualKeys:[]}),[a,b,c]=inventory.entries.map(entry=>entry.id);
+ const result={suggestions:[{fileId:a,category:'Projects',topic:'Atlas',stem:'atlas-spec',reason:'Spec.',sufficient:true},{fileId:b,category:'Projects',topic:'Atlas',stem:'atlas-spec',reason:'Spec.',sufficient:true},{fileId:c,category:'Invoices',topic:'',stem:'acme-invoice',reason:'Invoice.',sufficient:true}],evidence:[a,b,c].map(fileId=>({fileId,kind:'text'})),model:'model',excludedIds:[]};
+ const paths=session.acceptAnalysis(ticket,result).rows.map(row=>row.targetPath);
+ assert.deepEqual(paths,['Projects/Atlas/atlas-spec.json','Projects/Atlas/atlas-spec.txt','Invoices/acme-invoice.txt']);
+});
