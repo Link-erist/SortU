@@ -50,7 +50,7 @@ export function createOrganizerSession() {
       const exclusions={excludedIds:[...inputs.exclusions.excludedIds,...excludedIds]},base=buildProposal(inputs.inventory,inputs.rules,exclusions),included=base.rows.filter(row=>row.included),seen=new Set();
       if(suggestions.length!==included.length||evidence.length!==included.length)throw new Error('AI analysis is missing or repeats files.');
       const byId=new Map();for(const suggestion of suggestions){if(seen.has(suggestion.fileId)||!included.some(row=>row.fileId===suggestion.fileId))throw new Error('Unknown, excluded or repeated AI file.');seen.add(suggestion.fileId);byId.set(suggestion.fileId,validateSuggestion(JSON.stringify(suggestion),{fileId:suggestion.fileId}));}
-      const evidenceIds=new Set();for(const item of evidence){if(!seen.has(item.fileId)||evidenceIds.has(item.fileId)||!['text','truncated','metadata'].includes(item.kind))throw new Error('Invalid AI evidence.');evidenceIds.add(item.fileId);}
+      const evidenceIds=new Set();for(const item of evidence){if(!seen.has(item.fileId)||evidenceIds.has(item.fileId)||!['text','truncated','metadata'].includes(item.kind)||(item.status!==undefined&&!['text','no-text','unsupported','error'].includes(item.status))||(item.detail!==undefined&&(typeof item.detail!=='string'||item.detail.length>300||/[\u0000-\u001f\u007f]/.test(item.detail))))throw new Error('Invalid AI evidence.');evidenceIds.add(item.fileId);}
       const used=[REPORT_PATH],manual=new Set(issued.context.manualKeys);
       const rows=base.rows.map(row=>{
         if(!row.included)return row;const suggestion=byId.get(row.fileId),entry=inputs.inventory.entries.find(e=>e.id===row.fileId),kind=evidence.find(e=>e.fileId===row.fileId).kind;
@@ -58,9 +58,10 @@ export function createOrganizerSession() {
         if(suggestion.sufficient){const parts=target.split('/');if(!manual.has('naming'))parts[parts.length-1]=safeSegment(suggestion.stem,true)+entry.extension;
           if(!manual.has('groupBy')&&inputs.rules.groupBy==='type')parts.splice(0,parts.length-1,safeSegment(suggestion.category));target=parts.join('/');}
         target=keepBoth(target,used);used.push(target);
-        return {...row,targetPath:target,operation:target===entry.sourcePath?'unchanged':'organize',reason:kind==='metadata'?`${row.reason} Metadata-only fallback.`:`AI based on ${kind==='truncated'?'a truncated excerpt':'extracted text'}. ${suggestion.reason}`};
+        const outcome=evidence.find(item=>item.fileId===row.fileId);
+        return {...row,targetPath:target,operation:target===entry.sourcePath?'unchanged':'organize',reason:kind==='metadata'?`${row.reason} Metadata-only fallback. ${outcome.detail||''}`.trimEnd():`AI based on ${kind==='truncated'?'a truncated excerpt':'extracted text'}. ${suggestion.reason}`};
       });
-      const analysis=Object.freeze({model,guideDigest:issued.context.guideDigest,evidence:Object.freeze(evidence.map(item=>Object.freeze({fileId:item.fileId,kind:item.kind})))});
+      const analysis=Object.freeze({model,guideDigest:issued.context.guideDigest,evidence:Object.freeze(evidence.map(item=>Object.freeze({fileId:item.fileId,kind:item.kind,status:item.status||'text',detail:item.detail||''})))});
       const candidate=finalize({...base,rows,analysis});validateProposal(candidate,inputs.inventory);inputs={...inputs,exclusions};proposal=candidate;tickets.delete(ticket);return proposal;
     },
     editTarget(fileId, path) {

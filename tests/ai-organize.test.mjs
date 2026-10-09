@@ -13,3 +13,40 @@ test('AI session tickets are opaque, stale results are refused and paths preserv
  const result={suggestions:[{fileId:inventory.entries[0].id,category:'Invoices',stem:'acme-invoice',reason:'Invoice text.',sufficient:true}],evidence:[{fileId:inventory.entries[0].id,kind:'text'}],model:'model',excludedIds:[]};
  assert.throws(()=>session.acceptAnalysis({...ticket},result),/stale|ticket/);const proposal=session.acceptAnalysis(ticket,result);assert.equal(proposal.rows[0].targetPath,'Invoices/acme-invoice.tar.gz');const permit=session.approve();session.editTarget(inventory.entries[0].id,'Documents/manual.tar.gz');assert.throws(()=>session.resolveApproval(permit),/stale/);assert.throws(()=>session.acceptAnalysis(ticket,result),/stale|ticket/);
 });
+test('per-file extraction errors remain visible in the proposal',async()=>{
+ const {createAiOrganizer,MODEL_ID}=await import('../public/ai/organize.js');const inventory=createInventory([new File(['pdf'],'large.pdf')]),rules=defaultRules();
+ const ai=createAiOrganizer({runtimeFactory:runtime,extractor:async entry=>({fileId:entry.id,text:'',status:'error',truncated:false,evidence:'PDF exceeds the 10 MiB analysis limit.'})});const result=await ai.analyze({inventory,rules,guide:'',revision:'one'});
+ const session=createOrganizerSession();session.setInputs({inventory,rules});const ticket=session.beginAnalysis({modelId:MODEL_ID,guideDigest:'',manualKeys:[]});const proposal=session.acceptAnalysis(ticket,result);assert.match(proposal.rows[0].reason,/10 MiB/);assert.equal(proposal.analysis.evidence[0].status,'error');
+});
+test('guide confirmation cannot depend on the model correctly noticing exclusion intent',async()=>{
+ const {createAiOrganizer}=await import('../public/ai/organize.js');let reads=0;
+ const ai=createAiOrganizer({runtimeFactory:()=>({...runtime(),generate:async()=>({raw:JSON.stringify({summary:'Organize files',grouping:'subject',naming:'descriptive',exclusionPatterns:[],needsConfirmation:false,blockedReason:''})})}),extractor:async()=>{reads++;}});
+ await assert.rejects(()=>ai.analyze({inventory:createInventory([new File(['secret'],'private.txt')]),rules:defaultRules(),guide:'Do not read private files',revision:'one'},{onGuideReview:async()=>({confirmed:false})}),/canceled/);assert.equal(reads,0);
+});
+test('very short text uses visible metadata fallback rather than a fabricated subject',async()=>{
+ const {createAiOrganizer}=await import('../public/ai/organize.js');let generated=0;const inventory=createInventory([new File(['Maybe later. Check the thing. No other context is available.'],'a.txt')]);const ai=createAiOrganizer({runtimeFactory:()=>({...runtime(),generate:async()=>{generated++;}})});
+ const result=await ai.analyze({inventory,rules:defaultRules(),guide:'',revision:'one'});assert.equal(generated,0);assert.equal(result.evidence[0].kind,'metadata');assert.match(result.evidence[0].detail,/context/);
+});
+test('model filename stems are normalized to at most six lowercase hyphenated words',async()=>{
+ const {createAiOrganizer}=await import('../public/ai/organize.js');const text='Meeting minutes for the Atlas project planning session with milestones, assigned testing and the next meeting date.';
+ const ai=createAiOrganizer({runtimeFactory:()=>({...runtime(),generate:async({entry})=>({raw:JSON.stringify({fileId:entry.id,category:'Meeting Notes',stem:'Meeting minutes Atlas project planning attendees discussed milestones',reason:'Meeting minutes.',sufficient:true})})}),extractor:async entry=>({fileId:entry.id,text,status:'text',truncated:false,evidence:'Text'})});
+ const result=await ai.analyze({inventory:createInventory([new File([text],'a.txt')]),rules:defaultRules(),guide:'',revision:'one'});assert.equal(result.suggestions[0].stem,'meeting-minutes-atlas-project-planning-attendees');
+});
+test('near-matches of the preferred categories use the list spelling; other categories are kept',async()=>{
+ const {createAiOrganizer}=await import('../public/ai/organize.js');const text='A document with enough words to pass the short text gate and reach the local model for a suggestion.';const answers=['recipes','Meeting note','IT Support','invoice'];
+ const ai=createAiOrganizer({runtimeFactory:()=>({...runtime(),generate:async({entry})=>({raw:JSON.stringify({fileId:entry.id,category:answers.shift(),stem:'example',reason:'Example.',sufficient:true})})}),extractor:async entry=>({fileId:entry.id,text,status:'text',truncated:false,evidence:'Text'})});
+ const result=await ai.analyze({inventory:createInventory(['a','b','c','d'].map(name=>new File([text],name+'.txt'))),rules:defaultRules(),guide:'',revision:'one'});assert.deepEqual(result.suggestions.map(item=>item.category),['Recipes','Meeting Notes','IT Support','Invoices']);
+});
+test('canceling while queued behind another job reads nothing and leaves the lock usable',async()=>{
+ const {createAiOrganizer}=await import('../public/ai/organize.js');const {acquireExportLock}=await import('../public/transfer/resources.js');const release=await acquireExportLock('other-job');let started=0,reads=0;
+ const ai=createAiOrganizer({runtimeFactory:()=>{started++;return runtime();},extractor:async()=>{reads++;}});const controller=new AbortController(),inventory=createInventory([new File(['x'.repeat(200)],'a.txt')]);
+ const queued=ai.analyze({inventory,rules:defaultRules(),guide:'',revision:'one'},{signal:controller.signal});controller.abort();await assert.rejects(()=>queued,/AI analysis canceled/);assert.equal(started,0);assert.equal(reads,0);
+ release();const next=createAiOrganizer({runtimeFactory:runtime});assert.equal((await next.analyze({inventory,rules:defaultRules(),guide:'',revision:'two'})).suggestions.length,1);
+});
+test('GPU loss during generation fails the analysis, releases the runtime and allows a retry',async()=>{
+ const {createAiOrganizer}=await import('../public/ai/organize.js');const text='Invoice from Acme Supplies for office paper and pens, total due at the end of the month, payment terms thirty days.';let calls=0,unloads=0,disposals=0;
+ const lossy=()=>({...runtime(),generate:async args=>{if(++calls===2)throw new Error('Local AI graphics device was lost.');return runtime().generate(args);},unload:async()=>{unloads++;},dispose(){disposals++;}});
+ const ai=createAiOrganizer({runtimeFactory:lossy,extractor:async entry=>({fileId:entry.id,text,status:'text',truncated:false,evidence:'Text'})}),inventory=createInventory([new File([text],'a.txt'),new File([text],'b.txt')]);
+ await assert.rejects(()=>ai.analyze({inventory,rules:defaultRules(),guide:'',revision:'one'}),/device was lost/);assert.equal(unloads,1);assert.equal(disposals,1);
+ assert.equal((await ai.analyze({inventory,rules:defaultRules(),guide:'',revision:'two'})).suggestions.length,2);
+});

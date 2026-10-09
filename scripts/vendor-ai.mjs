@@ -13,5 +13,7 @@ await writeFile('public/ai/model.json',JSON.stringify(model,null,2)+'\n');
 const licenses=[];for(const [pkg,path] of [['@mlc-ai/web-llm','LICENSE'],['@huggingface/tokenizers','LICENSE'],['pdfjs-dist','LICENSE']])licenses.push(`${pkg}\n${await readFile(`node_modules/${pkg}/${path}`,'utf8')}`);
 await writeFile('public/vendor/AI-LICENSES.txt',licenses.join('\n\n'));const manifest=JSON.parse(await readFile('public/vendor/manifest.json','utf8'));
 const paths=['webllm.js','tokenizers.js','ai-hashes.js','AI-LICENSES.txt',...(await readdir('public/vendor/pdf',{recursive:true})).filter(name=>/\.(js|wasm|bcmap|ttf|pfb|otf)$/.test(name)).map(name=>'pdf/'+name.replaceAll('\\','/'))];
+// The PDF directory is regenerated each run; drop its old entries so renamed files cannot linger.
+for(const name of Object.keys(manifest.assets))if(name.startsWith('pdf/'))delete manifest.assets[name];
 for(const name of paths){const bytes=await readFile(`public/vendor/${name}`);manifest.assets[name]={bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')};}
 manifest.webllm='0.2.85';manifest.tokenizers='0.2.0';manifest.pdfjs='6.4.299';await writeFile('public/vendor/manifest.json',JSON.stringify(manifest,null,2)+'\n');console.log(JSON.stringify({totalModelBytes:model.totalBytes,runtime:manifest.assets['webllm.js']},null,2));

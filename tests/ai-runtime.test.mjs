@@ -21,3 +21,11 @@ test('cached size or hash corruption cannot pass offline verification',async()=>
  const transport=createModelTransport({manifest,offline:true,cacheLookup:async()=>new Response('bad')});const response=await transport.fetch(manifest.modelBase+'one.bin');await assert.rejects(()=>response.arrayBuffer(),/integrity/);
  const short=createModelTransport({manifest,offline:true,cacheLookup:async()=>new Response('ab')});await assert.rejects(async()=>{await(await short.fetch(manifest.modelBase+'one.bin')).arrayBuffer();},/size/);
 });
+test('runtime-required GPU limits are checked before model download',async()=>{
+ const {checkAiCapabilities}=await import('../public/ai/capabilities.js');const adapter={features:new Set(['shader-f16']),limits:{maxComputeWorkgroupStorageSize:16384,maxStorageBuffersPerShaderStage:8}};const caps=await checkAiCapabilities({gpu:{requestAdapter:async()=>adapter}},{secureContext:true});assert.equal(caps.supported,false);assert.match(caps.reason,/limit|storage/i);
+});
+test('blocked downloads and storage quota errors fail preparation without claiming readiness',async()=>{
+ const {createModelTransport}=await import('../public/ai/transport.js');const manifest={modelBase:'https://example.test/pinned/',library:{url:'https://example.test/library.wasm',bytes:3},artifacts:[{path:'one.bin',bytes:3}],totalBytes:6};let stored=0;
+ const blocked=createModelTransport({manifest,fetcher:async()=>{throw new TypeError('Failed to fetch');},cacheLookup:async()=>undefined,cacheStore:async()=>{stored++;}});await assert.rejects(()=>blocked.prepareArtifacts(),/Failed to fetch/);assert.equal(stored,0);
+ const full=createModelTransport({manifest,fetcher:async()=>new Response('abc'),cacheLookup:async()=>undefined,cacheStore:async(url,response)=>{await response.arrayBuffer();throw new DOMException('Storage is full.','QuotaExceededError');}});await assert.rejects(()=>full.prepareArtifacts(),error=>error.name==='QuotaExceededError');
+});

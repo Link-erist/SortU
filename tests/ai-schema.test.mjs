@@ -9,3 +9,10 @@ test('guide interpretation exposes exclusion review and rejects executable opera
 test('runtime JSON formatting always supplies a schema string',async()=>{
  const {responseFormat}=await import('../public/ai/schema.js');for(const kind of ['warmup','guide','file']){const format=responseFormat(kind,'one');assert.equal(format.type,'json_object');assert.equal(typeof format.schema,'string');const schema=JSON.parse(format.schema);assert.equal(schema.additionalProperties,false);if(kind==='file')assert.deepEqual(schema.properties.fileId.enum,['one']);}
 });
+test('copied prompt field descriptions are refused as suggestions',async()=>{
+ const {validateSuggestion}=await import('../public/ai/schema.js');const value={fileId:'one',category:'Invoices, 1-60 characters',stem:'invoice',reason:'Invoice subject.',sufficient:true};assert.throws(()=>validateSuggestion(JSON.stringify(value),{fileId:'one'}),/placeholder|instruction/);
+});
+test('suggestion categories stay free text in the grammar and validator',async()=>{
+ const {validateSuggestion,responseFormat,CATEGORIES}=await import('../public/ai/schema.js');assert.ok(CATEGORIES.includes('Other'));assert.equal(JSON.parse(responseFormat('file','one').schema).properties.category.enum,undefined);
+ assert.equal(validateSuggestion(JSON.stringify({fileId:'one',category:'IT Support',stem:'resume',reason:'Resume.',sufficient:true}),{fileId:'one'}).category,'IT Support');
+});

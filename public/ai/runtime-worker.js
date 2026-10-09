@@ -10,7 +10,7 @@ async function load(offline,progress) {
  manifest||=await(await nativeFetch(new URL('./model.json',import.meta.url))).json();
  const caps=await checkAiCapabilities(navigator,{secureContext:globalThis.isSecureContext,model:manifest});if(!caps.supported)throw new Error(caps.reason);
  const transport=createModelTransport({manifest,offline,fetcher:nativeFetch,onProgress:progress,cacheLookup:async url=>(await nativeOpen(transport.specs.get(url).scope)).match(url),cacheStore:async(url,response)=>(await nativeOpen(transport.specs.get(url).scope)).put(url,response)});
- await transport.prepareArtifacts();
+ const preparation=await transport.prepareArtifacts();
  // Cache.add bypasses JavaScript fetch in this pinned runtime. Refuse it after
  // explicit preparation, so a missing entry cannot cause an unnoticed fetch.
  caches.open=async scope=>{const cache=await nativeOpen(scope);if(!['webllm/model','webllm/config','webllm/wasm'].includes(scope))return cache;
@@ -22,7 +22,7 @@ async function load(offline,progress) {
  tokenizer=new Tokenizer(await(await transport.fetch(manifest.modelBase+'tokenizer.json')).json(),await(await transport.fetch(manifest.modelBase+'tokenizer_config.json')).json());
  const response=await engine.chat.completions.create({messages:[{role:'user',content:'Reply with the JSON object {"ok":true} only.'}],temperature:0,max_tokens:32,response_format:responseFormat('warmup')});
  if(JSON.parse(response.choices[0].message.content).ok!==true)throw new Error('Model warmup did not produce the expected JSON.');await engine.resetChat();
- return {ready:true,offlineVerified:offline,modelId:manifest.modelId,bytes:manifest.totalBytes,capabilities:caps};
+ return {ready:true,offlineVerified:offline,modelId:manifest.modelId,bytes:manifest.totalBytes,downloadedBytes:preparation.bytes,capabilities:caps};
 }
 self.onmessage=async({data})=>{
  if(data?.v!==1||busy)return;busy=true;const reply=(value)=>self.postMessage({v:1,id:data.id,revision:data.revision,...value});

@@ -18,15 +18,15 @@ export function createModelTransport({manifest,offline=false,onProgress=()=>{},s
  }
  const lookup=cacheLookup|| (async url=>(await cacheFor(url)).match(url));
  const store=cacheStore|| (async(url,response)=>(await cacheFor(url)).put(url,response));
- async function fetchArtifact(input,options={}) {
+ async function fetchArtifact(input,options={},cacheOverride) {
   check();const url=typeof input==='string'?input:input.url;if((options.method||input.method||'GET')!=='GET')throw new Error('Only GET model requests are allowed.');
-  const spec=specs.get(url);if(!spec)throw new Error('URL is not a pinned model artifact.');const cached=await lookup(url);
+  const spec=specs.get(url);if(!spec)throw new Error('URL is not a pinned model artifact.');const cached=cacheOverride||await lookup(url);
   if(cached)return verify(cached,spec);
   if(offline)throw new Error('Offline AI requires all prepared model cache entries.');
   return verify(await fetcher(url,{signal,credentials:'omit',referrerPolicy:'no-referrer'}),spec,{network:true});
  }
  async function prepareArtifacts(){for(const [url,spec]of specs){check();onProgress({stage:offline?'Verifying prepared model':'Preparing model assets',file:spec.path||'model library',bytes:transferred,total:manifest.totalBytes});
-   const present=await lookup(url),response=await fetchArtifact(url);try {if(present){const reader=response.body.getReader();while(!(await reader.read()).done)check();}else await store(url,response);}catch(error){if(typeof caches!=='undefined')await(await cacheFor(url)).delete(url);throw error;}
+   const present=await lookup(url),response=await fetchArtifact(url,{},present);try {if(present){const reader=response.body.getReader();while(!(await reader.read()).done)check();}else await store(url,response);}catch(error){if(typeof caches!=='undefined')await(await cacheFor(url)).delete(url);throw error;}
   }return {bytes:transferred};}
  return {fetch:fetchArtifact,prepareArtifacts,verifyCachedArtifacts:prepareArtifacts,dispose(){},specs};
 }

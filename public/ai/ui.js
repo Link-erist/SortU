@@ -10,7 +10,9 @@ export function mountAiControls(root,{onModeChange,onBusy,onStatus}={}) {
  const listen=(selector,event,fn)=>{const el=$(selector);el.addEventListener(event,fn);removers.push(()=>el.removeEventListener(event,fn));};
  async function prepare() {
   if(active)return;active=new AbortController();onBusy?.(active);let release,runtime;
-  try {progress({stage:'Waiting for preparation resources'});release=await acquireExportLock('organizer-ai',active.signal);runtime=createLocalRuntime({signal:active.signal,onProgress:progress});const result=await runtime.prepare();status(`Prepared ${result.modelId}. Offline readiness will be checked when analyzing files.`);}
+  try {progress({stage:'Waiting for preparation resources'});release=await acquireExportLock('organizer-ai',active.signal);// Ask the browser to keep the large model cache; without this a plain tab's storage can be evicted under disk pressure.
+   const persisted=await Promise.resolve(navigator.storage?.persist?.()).catch(()=>false);
+   runtime=createLocalRuntime({signal:active.signal,onProgress:progress});const result=await runtime.prepare();status(`Prepared ${result.modelId}. Offline readiness will be checked when analyzing files.${persisted?'':' This browser may remove the prepared model when storage is low; installing the app makes that less likely.'}`);}
   catch(error){status(error.message,true);onStatus?.(error.message,true);}
   finally{try{await runtime?.unload();}catch{}runtime?.dispose();release?.();active=null;onBusy?.(null);}
  }

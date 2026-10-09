@@ -1,5 +1,19 @@
 # Verification: AppBuildersHackathon
 
+## Local AI Organizer, October 10, 2026
+
+Branch: `feat/local-ai-organizer`. Model: Qwen2.5-1.5B-Instruct-q4f16_1-MLC (WebLLM 0.2.85), about 885 MB, prepared only on explicit request. Detailed run history is in `docs/local-ai-progress.md`.
+
+- Real headless Windows Edge with an Intel WebGPU adapter: explicit preparation, then offline reload with the network blocked, cold model load from the prepared cache, and analysis of 12 synthetic fixtures (text, JSON, CSV, Markdown, UTF-8 Tagalog, embedded-text PDF, ambiguous note, scanned PDF) plus one excluded file. Analysis took 476-656 seconds for the 12 files.
+- Export: the downloaded ZIP's payloads and SHA-256 checksums matched every included source; the excluded file stayed excluded. The ambiguous note and scanned PDF visibly used metadata fallback with the reason shown.
+- **AI quality gate: unresolved.** Folder and filename are scored separately; the latest prompt scores 8/10 clear-topic fixtures against a 9/10 gate. Misses: software specification filed as Contracts, resume filed as Personal. All ten filenames passed. Grammar-enforced categories were tried and scored 2/10, so categories stay free text with a preferred list in the prompt and spelling normalization afterwards. Swapped-content controls passed (both opaque-name pairs changed subject) in the one run that reached them.
+- **Edge stability: unresolved.** Five of eight long runs ended with a headless Edge browser-process crash about 10-11 minutes in (crash dumps in the test profile; dump strings mention HangWatcher). Runs that finished sooner did not crash. Whether this affects a person running a long analysis in normal Edge, or Chrome, is untested.
+- Failure cases covered by unit tests: missing/corrupted cached model files, offline network refusal, blocked downloads, storage quota errors, PDF timeout and late parser cleanup, worker cancellation, cancellation while queued, GPU loss mid-generation with release and retry, stale replies, oversized guides, injection documents, excluded sources that throw on read, and copied prompt placeholders.
+- Organizer, Transfer and AI UI browser regressions pass (Rules fallback, offline reload, no page errors, no 390px overflow). Vendor asset hashes match the manifest after removing two stale `.mjs` entries. `npm test`: 82 passed, 0 failed.
+- Reproduce the real-model run with `node scripts/check-ai-organizer-browser.mjs` (set `PLAYWRIGHT_MODULE`; optional `AI_BROWSER_CHANNEL` and `AI_BROWSER_PROFILE`). It needs a prepared model in the chosen browser profile and takes about 10-11 minutes.
+
+Remaining gates: AI quality (8/10 vs 9/10), long-run Edge stability, token-count parity with runtime-reported prompt usage, Android hardware, native folder dialogs, physical LAN.
+
 ## Organizer Core, October 9, 2026
 
 Current local branch: `feat/organizer-core`, based on `451c7b5`. The following checks supersede older milestone counts below. No organizer or transfer feature publication is implied by the original production URL.

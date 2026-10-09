@@ -44,14 +44,6 @@
       "bytes": 33323,
       "sha256": "2c8632962090a92b1f78afd7dd9c6a3f43a24f30289b53413b49bbb512a76348"
     },
-    "pdf/pdf.mjs": {
-      "bytes": 860818,
-      "sha256": "dd13af821c9c3e1778653340d6539a1ba07bc56cba40073a4c727864cf0c232a"
-    },
-    "pdf/pdf.worker.mjs": {
-      "bytes": 2229713,
-      "sha256": "07ceb740d746e5d9012fcf9f27d5c7dea09f7d2f5e74f5c8109e5787551a2333"
-    },
     "pdf/wasm/jbig2.wasm": {
       "bytes": 103671,
       "sha256": "466f45c2a61a698152fb5400c27e56ff2ceb73dcb71fde3fc366a502308eaab0"
