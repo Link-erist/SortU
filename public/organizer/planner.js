@@ -8,7 +8,7 @@ function localDate(value, timeZone) {
   const pick = type => parts.find(p => p.type === type).value;
   return `${pick('year')}-${pick('month')}-${pick('day')}`;
 }
-function keepBoth(path, used) {
+export function keepBoth(path, used) {
   let candidate = path;
   for (let number = 2; number <= 1000; number++) {
     const conflict = used.find(other => pathsConflict(candidate, other));

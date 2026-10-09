@@ -5,7 +5,7 @@ import {createHasher} from '../transfer/hash.js';
 
 const check = signal => {if (signal?.aborted) throw new Error('Export canceled.');};
 export function buildReport(snapshot, checksums) {
-  const bytes = new TextEncoder().encode(JSON.stringify({version:1, revision:snapshot.revision, rules:snapshot.rules, rows:snapshot.rows, checksums}, null, 2));
+  const bytes = new TextEncoder().encode(JSON.stringify({version:1, revision:snapshot.revision, rules:snapshot.rules, rows:snapshot.rows,analysis:snapshot.analysis||null, checksums}, null, 2));
   if (bytes.length > 524288) throw new Error('Organization report exceeds 512 KiB.');
   return bytes;
 }

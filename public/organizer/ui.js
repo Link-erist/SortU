@@ -3,16 +3,20 @@ import {parseGuide,resolveRules} from './rules.js';
 import {createOrganizerSession} from './proposal.js';
 import {exportApproved} from './export.js';
 import {releaseDownloadResources} from '../transfer/resources.js';
+import {mountAiControls} from '../ai/ui.js';
+import {MODEL_ID} from '../ai/organize.js';
+import {sha256} from '../vendor/sha256.js';
 
 export function mountOrganizer(root) {
   const $=selector=>root.querySelector(selector), session=createOrganizerSession(), removers=[];
-  let inventory=null, excluded=new Set(), controls={}, readme='', automatic=false, permit=null, job=null, closed=false, guideEpoch=0, guidePending=false, guideError='';
+  let inventory=null, excluded=new Set(), controls={}, readme='', automatic=false, permit=null, job=null, closed=false, guideEpoch=0, guidePending=false, guideError='',aiControls;
   const status=(message,error=false)=>{ $('#organizer-status').textContent=message;$('#organizer-status').dataset.state=error?'error':'ready';};
   const listen=(selector,event,handler)=>{const element=$(selector);element.addEventListener(event,handler);removers.push(()=>element.removeEventListener(event,handler));};
   function buttons() {
     $('#approve-proposal').disabled=!!job||!session.proposal;
     $('#export-zip').disabled=!!job||!permit;$('#export-folder').disabled=!!job||!permit;
-    $('#cancel-export').hidden=!job;
+    $('#cancel-export').hidden=!job||!!aiControls?.isBusy();
+    $('#cancel-ai').hidden=!aiControls?.isBusy();
     for(const el of root.querySelectorAll('[data-setting]')) el.disabled=!!job;
     for(const el of root.querySelectorAll('#inventory-list input, #proposal-list input')) el.disabled=!!job;
   }
@@ -22,6 +26,7 @@ export function mountOrganizer(root) {
     if(automatic) return resolveRules({guides:readme||guideError||$('#organizer-instructions').value.trim()?[{rules:{},errors:[],unsupported:[]}]:[],controls,automatic:true});
     const guides=[];if($('#organizer-instructions').value.trim()) guides.push(parseGuide($('#organizer-instructions').value));
     if(readme) guides.push(parseGuide(readme,{source:'readme'}));
+    if(aiControls?.getMode()==='local') for(const guide of guides)guide.unsupported=[];
     return resolveRules({guides,controls,automatic});
   }
   function showRules() {
@@ -36,7 +41,7 @@ export function mountOrganizer(root) {
       box.addEventListener('change',()=>{box.checked?excluded.delete(entry.id):excluded.add(entry.id);invalidate();status('Selection changed. Generate and approve a new proposal.');});
       label.append(box,text);$('#inventory-list').append(label);
     }
-    $('#inventory-count').textContent=inventory?`${inventory.entries.length} selected files. Contents stay unread until export.`:'Choose up to 100 files.';
+    $('#inventory-count').textContent=inventory?`${inventory.entries.length} selected files. ${aiControls?.getMode()==='local'?'Included supported files are read when you analyze them.':'Contents stay unread until export.'}`:'Choose up to 100 files.';
   }
   function proposalView() {
     const proposal=session.proposal;$('#proposal-list').replaceChildren();
@@ -71,10 +76,19 @@ export function mountOrganizer(root) {
     } catch(error){if(epoch===guideEpoch){readme='';guidePending=false;guideError=error.message;invalidate();showRules();status(error.message,true);}}
   });
   listen('#use-automatic','click',()=>{automatic=true;controls={};$('#group-by').value='type';$('#naming').value='normalize';$('#naming-template').value='{stem}';$('#exclusion-patterns').value='';invalidate();showRules();status('Automatic settings selected. Guide instructions are ignored; manual exclusions remain.');});
-  listen('#generate-proposal','click',()=>{
+  listen('#generate-proposal','click',async()=>{
+    if(job)return;
     permit=null;
     try {if(!inventory)throw new Error('Choose files first.');const resolved=settings();if(resolved.errors.length)throw new Error(resolved.errors.join(' '));
-      session.setInputs({inventory,rules:resolved.rules,exclusions:{excludedIds:[...excluded]},guideResolved:true});session.generate();proposalView();status('Review every proposed path. No files have changed.');
+      session.setInputs({inventory,rules:resolved.rules,exclusions:{excludedIds:[...excluded]},guideResolved:true});
+      if(aiControls.getMode()==='local') {
+       const guide=automatic?'':[$('#organizer-instructions').value,readme].filter(Boolean).join('\n');
+       const guideDigest=Array.from(sha256(new TextEncoder().encode(guide)),byte=>byte.toString(16).padStart(2,'0')).join('');
+       const manualKeys=new Set(Object.keys(controls));if(!automatic){for(const text of [$('#organizer-instructions').value,readme])if(text.trim())for(const key of Object.keys(parseGuide(text,{source:'readme'}).rules))manualKeys.add(key);}
+       const ticket=session.beginAnalysis({modelId:MODEL_ID,guideDigest,manualKeys:[...manualKeys]});
+       const result=await aiControls.analyze({inventory,rules:resolved.rules,exclusions:{excludedIds:[...excluded]},guide,revision:ticket.revision});if(closed)return;session.acceptAnalysis(ticket,result);
+      }else session.generate();
+      proposalView();status('Review every proposed path. No original files have changed.');
     }catch(error){session.reset();$('#proposal-area').hidden=true;buttons();status(error.message,true);}
   });
   listen('#approve-proposal','click',()=>{try{permit=session.approve();status('Proposal approved. Export organized copies when ready.');}catch(error){permit=null;status(error.message,true);}buttons();});
@@ -94,6 +108,7 @@ export function mountOrganizer(root) {
   listen('#reset-organizer','click',()=>{inventory=null;excluded.clear();invalidate();inventoryView();releaseDownloadResources('organizer');$('#organizer-files').value='';$('#organizer-folder').value='';status('File selection cleared.');});
   $('#export-folder').hidden=typeof window.showDirectoryPicker!=='function';
   $('#folder-support').textContent=typeof window.showDirectoryPicker==='function'?'Save copies in a new subfolder on supported Windows browsers, or download a ZIP.':'This browser uses ZIP export. Direct folder saving is unavailable.';
+  aiControls=mountAiControls(root,{onModeChange:()=>{invalidate();showRules();inventoryView();$('#generate-proposal').textContent=aiControls.getMode()==='local'?'Analyze and propose':'Generate proposal';$('#analysis-badge').textContent=aiControls.getMode()==='local'?'Local AI mode':'Rules-based preview';},onBusy:controller=>{job=controller;buttons();},onStatus:status});
   showRules();buttons();
-  return ()=>{closed=true;guideEpoch++;job?.abort();session.reset();releaseDownloadResources('organizer');removers.forEach(remove=>remove());};
+  return ()=>{closed=true;guideEpoch++;job?.abort();aiControls.dispose();session.reset();releaseDownloadResources('organizer');removers.forEach(remove=>remove());};
 }

@@ -6,7 +6,7 @@ export async function extractPdf(file,{signal,pdfFactory,timeout=30000}={}) {
    const bytes=new Uint8Array(await file.arrayBuffer());check();
    if(pdfFactory)document=await pdfFactory(bytes);
    else {
-    const pdf=await import('../vendor/pdf/pdf.mjs');pdf.GlobalWorkerOptions.workerSrc=new URL('../vendor/pdf/pdf.worker.mjs',import.meta.url).href;
+    const pdf=await import('../vendor/pdf/pdf.js');pdf.GlobalWorkerOptions.workerSrc=new URL('../vendor/pdf/pdf.worker.js',import.meta.url).href;
     worker=new pdf.PDFWorker();loading=pdf.getDocument({data:bytes,worker,isEvalSupported:false,cMapUrl:new URL('../vendor/pdf/cmaps/',import.meta.url).href,cMapPacked:true,standardFontDataUrl:new URL('../vendor/pdf/standard_fonts/',import.meta.url).href,wasmUrl:new URL('../vendor/pdf/wasm/',import.meta.url).href,disableAutoFetch:true,disableStream:true});
     loading.onPassword=()=>{void loading.destroy();};document=await loading.promise;
    }

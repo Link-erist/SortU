@@ -795,6 +795,26 @@
     "pdf/cmaps/WP-Symbol.bcmap": {
       "bytes": 179,
       "sha256": "543923bead225732aba30976690ee89095a19628277b5863efecc2c728d5d7bf"
+    },
+    "pdf/pdf.js": {
+      "bytes": 860818,
+      "sha256": "dd13af821c9c3e1778653340d6539a1ba07bc56cba40073a4c727864cf0c232a"
+    },
+    "pdf/pdf.worker.js": {
+      "bytes": 2229713,
+      "sha256": "07ceb740d746e5d9012fcf9f27d5c7dea09f7d2f5e74f5c8109e5787551a2333"
+    },
+    "pdf/wasm/jbig2_nowasm_fallback.js": {
+      "bytes": 152009,
+      "sha256": "68686ced624a48c42f84cdaa482ec44b72b0de4dc84a0df903af1fb7b45b5d9a"
+    },
+    "pdf/wasm/openjpeg_nowasm_fallback.js": {
+      "bytes": 445781,
+      "sha256": "9047b34b6bc142d85e4b0aa1b08b0b9baad4c6f8b7ac87641b9e8f90eb6fd23e"
+    },
+    "pdf/wasm/quickjs-eval.js": {
+      "bytes": 6232,
+      "sha256": "fe7930418e869791ce892567dbd0bc4698152b7e550b5cefa553992c56ddc325"
     }
   },
   "fflate": "0.8.3",

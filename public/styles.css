@@ -111,4 +111,7 @@ select {display:block;margin-top:8px;}
 .proposal-row strong {font-size:14px;}
 pre {white-space:pre-wrap;overflow-wrap:anywhere;background:#f8fafc;padding:12px;border-radius:10px;font:12px/1.8 ui-monospace,monospace;}
 #organizer-status[data-state=error] {color:#9c301e;}
+#ai-status[data-state=error] {color:#9c301e;}
+dialog {border:1px solid #cbd5e1;border-radius:18px;padding:24px;max-width:640px;width:calc(100% - 40px);max-height:80vh;overflow:auto;}
+dialog::backdrop {background:#17203699;}
 @media(max-width:600px) {.settings-grid {grid-template-columns:1fr;gap:0;}}

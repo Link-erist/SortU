@@ -2,6 +2,7 @@ import {MLCEngine} from '../vendor/webllm.js';
 import {Tokenizer} from '../vendor/tokenizers.js';
 import {createModelTransport} from './transport.js';
 import {checkAiCapabilities} from './capabilities.js';
+import {responseFormat} from './schema.js';
 let engine=null,tokenizer=null,manifest=null,busy=false;
 const nativeFetch=globalThis.fetch.bind(globalThis),nativeOpen=caches.open.bind(caches);
 async function load(offline,progress) {
@@ -19,7 +20,7 @@ async function load(offline,progress) {
  engine=new MLCEngine({appConfig:{model_list:[model],cacheBackend:'cache'},initProgressCallback:p=>progress({stage:p.text,progress:p.progress}),logLevel:'ERROR'});
  await engine.reload(manifest.modelId,{context_window_size:4096});
  tokenizer=new Tokenizer(await(await transport.fetch(manifest.modelBase+'tokenizer.json')).json(),await(await transport.fetch(manifest.modelBase+'tokenizer_config.json')).json());
- const response=await engine.chat.completions.create({messages:[{role:'user',content:'Reply with the JSON object {"ok":true} only.'}],temperature:0,max_tokens:32,response_format:{type:'json_object'}});
+ const response=await engine.chat.completions.create({messages:[{role:'user',content:'Reply with the JSON object {"ok":true} only.'}],temperature:0,max_tokens:32,response_format:responseFormat('warmup')});
  if(JSON.parse(response.choices[0].message.content).ok!==true)throw new Error('Model warmup did not produce the expected JSON.');await engine.resetChat();
  return {ready:true,offlineVerified:offline,modelId:manifest.modelId,bytes:manifest.totalBytes,capabilities:caps};
 }
@@ -31,7 +32,7 @@ self.onmessage=async({data})=>{
   else if(data.type==='generate'){
    if(!engine||!tokenizer)throw new Error('Prepare or load local AI first.');
    const {buildPrompt}=await import('./prompts.js');const prompt=buildPrompt(data.payload,tokenizer);
-   await engine.resetChat();const response=await engine.chat.completions.create({messages:prompt.messages,temperature:0,max_tokens:512,response_format:{type:'json_object'},seed:0});
+   await engine.resetChat();const response=await engine.chat.completions.create({messages:prompt.messages,temperature:0,max_tokens:512,response_format:responseFormat(data.payload.kind,data.payload.entry?.id),seed:0});
    if(response.usage?.prompt_tokens!==prompt.promptTokens)throw new Error(`Tokenizer/runtime token counts differ (${prompt.promptTokens}/${response.usage?.prompt_tokens}).`);
    result={raw:response.choices[0].message.content,truncated:prompt.truncated,usage:response.usage};await engine.resetChat();
   }else if(data.type==='unload'){await engine?.unload();engine=null;tokenizer=null;result={unloaded:true};}
