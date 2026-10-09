@@ -12,7 +12,9 @@ Branch: `feat/local-ai-organizer`. Model: Qwen2.5-1.5B-Instruct-q4f16_1-MLC (Web
 - Organizer, Transfer and AI UI browser regressions pass (Rules fallback, offline reload, no page errors, no 390px overflow). Vendor asset hashes match the manifest after removing two stale `.mjs` entries. `npm test`: 82 passed, 0 failed.
 - Reproduce the real-model run with `node scripts/check-ai-organizer-browser.mjs` (set `PLAYWRIGHT_MODULE`; optional `AI_BROWSER_CHANNEL` and `AI_BROWSER_PROFILE`). It needs a prepared model in the chosen browser profile and takes about 10-11 minutes.
 
-Remaining gates: AI quality (8/10 vs 9/10), long-run Edge stability, token-count parity with runtime-reported prompt usage, Android hardware, native folder dialogs, physical LAN.
+- Save/load model folder: Edge saved the prepared model (885.5 MB) to a folder; a fresh Chrome profile loaded it with the network blocked (no external requests) and generated offline. Token parity is enforced on every generation by the worker.
+
+Remaining gates: AI quality (8/10 vs 9/10), long-run Edge stability, Android hardware, native folder dialogs (the save/load picker itself is not automated), physical LAN.
 
 ## Organizer Core, October 9, 2026
 

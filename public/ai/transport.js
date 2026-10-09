@@ -1,7 +1,7 @@
 import {sha256} from '../vendor/sha256.js';
 import {sha1} from '../vendor/ai-hashes.js';
 const hex=bytes=>Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
-export function createModelTransport({manifest,offline=false,onProgress=()=>{},signal,fetcher=globalThis.fetch.bind(globalThis),cacheLookup,cacheStore}={}) {
+export function createModelTransport({manifest,offline=false,onProgress=()=>{},transferStage='Downloading model',signal,fetcher=globalThis.fetch.bind(globalThis),cacheLookup,cacheStore}={}) {
  const specs=new Map(manifest.artifacts.map(file=>[manifest.modelBase+file.path,{...file,scope:file.path==='mlc-chat-config.json'?'webllm/config':'webllm/model'}]));
  specs.set(manifest.library.url,{...manifest.library,scope:'webllm/wasm'});let transferred=0;
  const check=()=>{if(signal?.aborted)throw new Error('Model preparation canceled.');};
@@ -12,7 +12,7 @@ export function createModelTransport({manifest,offline=false,onProgress=()=>{},s
   const reader=response.body.getReader();const stream=new ReadableStream({async pull(controller){try {check();const next=await reader.read();check();
    if(next.done){if(bytes!==spec.bytes)throw new Error('Model artifact size mismatch.');if(hash&&hex(hash.digest())!==(spec.sha256||spec.gitOid))throw new Error('Model artifact integrity mismatch.');controller.close();return;}
    bytes+=next.value.length;if(bytes>spec.bytes)throw new Error('Model artifact exceeds pinned size.');hash?.update(next.value);
-   if(network){transferred+=next.value.length;onProgress({stage:'Downloading model',bytes:transferred,total:manifest.totalBytes});}controller.enqueue(next.value);
+   if(network){transferred+=next.value.length;onProgress({stage:transferStage,bytes:transferred,total:manifest.totalBytes});}controller.enqueue(next.value);
   }catch(error){hash?.destroy();await reader.cancel().catch(()=>{});controller.error(error);}},cancel(reason){hash?.destroy();return reader.cancel(reason);}});
   return new Response(stream,{status:200,headers:response.headers});
  }

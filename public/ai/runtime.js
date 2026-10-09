@@ -14,5 +14,5 @@ export function createLocalRuntime({signal,onProgress=()=>{},workerFactory}={}) 
   return new Promise((resolve,reject)=>{const id=++nextId;pending={id,revision,type,resolve,reject};arm(type==='prepare'?90000:120000);worker.postMessage({v:1,id,revision,type,payload});});
  }
  signal?.addEventListener('abort',abort,{once:true});
- return {prepare:()=>request('prepare'),verifyOffline:()=>request('verifyOffline'),generate:({revision,...payload})=>request('generate',payload,revision),unload:()=>request('unload'),dispose:()=>fail(new Error('Local AI disposed.'))};
+ return {prepare:({files}={})=>request('prepare',files?{files}:{}),verifyOffline:()=>request('verifyOffline'),generate:({revision,...payload})=>request('generate',payload,revision),unload:()=>request('unload'),dispose:()=>fail(new Error('Local AI disposed.'))};
 }
