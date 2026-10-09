@@ -59,7 +59,8 @@ export function createAiOrganizer({runtimeFactory=createLocalRuntime,extractor=e
     for(const entry of selection.included) {
      check();let content=await extractor(entry,{signal:controller.signal,onProgress});check();
      if(content.fileId!==entry.id)throw new Error('Extraction returned a different file ID.');
-     if(content.status==='text'&&content.text.trim().length<80&&(content.text.match(/\p{L}[\p{L}\p{N}'-]*/gu)||[]).length<12)content={...content,status:'no-text',evidence:'Text has too little context for this AI profile; metadata used (under 80 characters and 12 words).'};
+     // Vague short notes get metadata fallback; spreadsheets are naturally terse label lists, so they are exempt.
+     if(content.status==='text'&&!['.xlsx','.ods','.csv'].includes(entry.extension.toLowerCase())&&content.text.trim().length<80&&(content.text.match(/\p{L}[\p{L}\p{N}'-]*/gu)||[]).length<12)content={...content,status:'no-text',evidence:'Text has too little context for this AI profile; metadata used (under 80 characters and 12 words).'};
      let suggestion={fileId:entry.id,category:entry.category,stem:safeSegment(entry.stem).slice(0,100),reason:'Metadata-only fallback.',sufficient:false},kind='metadata';
      if(content.status==='text') {
       onProgress({stage:'Understanding file',path:entry.sourcePath,completed:suggestions.length,total:selection.included.length});

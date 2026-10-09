@@ -107,3 +107,9 @@ test('model topics are capped at three words so related files can share a folder
  const ai=createAiOrganizer({runtimeFactory:()=>({...runtime(),generate:async({entry})=>({raw:JSON.stringify({fileId:entry.id,category:'Resumes',topic:'Jordan Reyes IT support specialist Resume',stem:'resume',reason:'Resume.',sufficient:true})})}),extractor:async entry=>({fileId:entry.id,text,status:'text',truncated:false,evidence:'Text'})});
  assert.equal((await ai.analyze({inventory:createInventory([new File([text],'a.txt')]),rules:defaultRules(),guide:'',revision:'one'})).suggestions[0].topic,'Jordan Reyes IT');
 });
+test('spreadsheets are not skipped by the short-text rule, which is meant for vague notes',async()=>{
+ const {createAiOrganizer}=await import('../public/ai/organize.js');let generated=0;
+ const ai=createAiOrganizer({runtimeFactory:()=>({...runtime(),generate:async args=>{generated++;return runtime().generate(args);}}),extractor:async entry=>({fileId:entry.id,text:'Invoices 2026\nInvoice number\nClient\nAmount due\nAcme Supplies',status:'text',truncated:false,evidence:'Excel document text.'})});
+ const result=await ai.analyze({inventory:createInventory(['a.xlsx','b.ods','c.csv'].map(name=>new File(['x'],name))),rules:defaultRules(),guide:'',revision:'one'});
+ assert.equal(generated,3);assert.ok(result.evidence.every(item=>item.kind==='text'));
+});
