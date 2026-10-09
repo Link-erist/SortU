@@ -65,13 +65,13 @@ export function createAiOrganizer({runtimeFactory=createLocalRuntime,extractor=e
       onProgress({stage:'Understanding file',path:entry.sourcePath,completed:suggestions.length,total:selection.included.length});
       const alias=`f${suggestions.length+1}`;
       const confirmedGuide=guidance?`${guide}\nConfirmed grouping preference: ${guidance.grouping}\nConfirmed naming preference: ${guidance.naming}`:guide;
-      // Only included files' names are shared as batch context; excluded files never reach the model.
+      // Other files' names are not sent: in real-model tests they made this model mark clear documents insufficient.
       const metadata={id:alias,name:entry.name,folder:entry.sourcePath.split('/').slice(0,-1).join('/'),extension:entry.extension,size:entry.size,modified:modifiedDate(entry.lastModified)};
-      const result=await runtime.generate({kind:'file',guide:confirmedGuide,entry:metadata,text:content.text,rules,categories,otherFiles:selection.included.filter(other=>other!==entry).map(other=>other.name),revision});check();
+      const result=await runtime.generate({kind:'file',guide:confirmedGuide,entry:metadata,text:content.text,rules,categories,revision});check();
       const validated=validateSuggestion(result.raw,{fileId:alias});
        // Small models tend to copy run-on phrases; keep the model's words but in a short, consistent filename shape.
        const words=validated.stem.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean).slice(0,6);
-       suggestion=Object.freeze({...validated,fileId:entry.id,category:preferredCategory(validated.category,preferred),topic:visibleText(validated.topic),stem:words.length?words.join('-'):validated.stem});kind=suggestion.sufficient?(content.truncated||result.truncated?'truncated':'text'):'metadata';
+       suggestion=Object.freeze({...validated,fileId:entry.id,category:preferredCategory(validated.category,preferred),topic:visibleText(validated.topic).split(' ').slice(0,3).join(' '),stem:words.length?words.join('-'):validated.stem});kind=suggestion.sufficient?(content.truncated||result.truncated?'truncated':'text'):'metadata';
      }
      const detail=String(content.evidence||'').replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,300),status=content.status;
      content=null;suggestions.push(suggestion);evidence.push({fileId:entry.id,kind,status,detail});

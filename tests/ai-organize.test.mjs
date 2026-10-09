@@ -67,7 +67,7 @@ test('the model receives file metadata, categories and only included batch names
  const inventory=createInventory([spec,new File([text],'notes.txt'),new File(['secret'],'private-salary.txt')]);
  const result=await ai.analyze({inventory,rules:defaultRules(),exclusions:{excludedIds:[inventory.entries[2].id]},guide:'',revision:'one',categories:['Projects','Invoices']});
  assert.equal(seen[0].entry.folder,'work/harbor');assert.equal(seen[0].entry.extension,'.json');assert.equal(seen[0].entry.size,text.length);assert.equal(seen[0].entry.modified,'2026-10-01');assert.deepEqual(seen[0].categories,['Projects','Invoices']);
- assert.deepEqual(seen[0].otherFiles,['notes.txt']);assert.ok(seen.every(args=>!JSON.stringify(args).includes('private-salary')));
+ assert.equal(seen[0].otherFiles,undefined);assert.ok(seen.every(args=>!JSON.stringify(args).includes('private-salary')));
  assert.equal(result.suggestions[0].topic,'Harbor');
 });
 const longText=topic=>`Meeting minutes and planning notes for ${topic}, covering milestones, testing assignments and the next review date.`;
@@ -101,4 +101,9 @@ test('AI proposals place files in Category/Topic folders; files without a topic 
  const result={suggestions:[{fileId:a,category:'Projects',topic:'Atlas',stem:'atlas-spec',reason:'Spec.',sufficient:true},{fileId:b,category:'Projects',topic:'Atlas',stem:'atlas-spec',reason:'Spec.',sufficient:true},{fileId:c,category:'Invoices',topic:'',stem:'acme-invoice',reason:'Invoice.',sufficient:true}],evidence:[a,b,c].map(fileId=>({fileId,kind:'text'})),model:'model',excludedIds:[]};
  const paths=session.acceptAnalysis(ticket,result).rows.map(row=>row.targetPath);
  assert.deepEqual(paths,['Projects/Atlas/atlas-spec.json','Projects/Atlas/atlas-spec.txt','Invoices/acme-invoice.txt']);
+});
+test('model topics are capped at three words so related files can share a folder',async()=>{
+ const {createAiOrganizer}=await import('../public/ai/organize.js');const text='Resume for Jordan Reyes, an IT support specialist with experience maintaining Windows workstations and networks.';
+ const ai=createAiOrganizer({runtimeFactory:()=>({...runtime(),generate:async({entry})=>({raw:JSON.stringify({fileId:entry.id,category:'Resumes',topic:'Jordan Reyes IT support specialist Resume',stem:'resume',reason:'Resume.',sufficient:true})})}),extractor:async entry=>({fileId:entry.id,text,status:'text',truncated:false,evidence:'Text'})});
+ assert.equal((await ai.analyze({inventory:createInventory([new File([text],'a.txt')]),rules:defaultRules(),guide:'',revision:'one'})).suggestions[0].topic,'Jordan Reyes IT');
 });
