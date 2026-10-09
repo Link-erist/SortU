@@ -1,11 +1,19 @@
 // Increment APP_VERSION and the matching index.html meta tag together for each release.
-const APP_VERSION = 'v1';
+const APP_VERSION = 'v2';
 const CACHE_PREFIX = 'appbuildershackathon-';
 const CACHE_NAME = `${CACHE_PREFIX}${APP_VERSION}`;
 const APP_ASSETS = [
   '/', '/index.html', '/styles.css', '/app.js', '/manifest.webmanifest',
-  '/icons/mark.svg', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png'
+  '/icons/mark.svg', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png',
+  '/transfer-entry.js', '/transfer/pairing.js', '/transfer/qr.js', '/transfer/protocol.js',
+  '/transfer/engine.js', '/transfer/storage.js', '/transfer/hash.js', '/transfer/hash-worker.js',
+  '/transfer/ui.js', '/vendor/qrcodegen.js', '/vendor/jsqr.js', '/vendor/sha256.js',
+  '/vendor/LICENSES.txt', '/vendor/manifest.json'
 ];
+
+self.addEventListener('message', event => {
+  if (event.data?.type === 'APP_VERSION') event.ports?.[0]?.postMessage({version: APP_VERSION});
+});
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_ASSETS)));

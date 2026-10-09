@@ -1,5 +1,22 @@
 # Verification: AppBuildersHackathon
 
+## Offline transfer feature, October 9, 2026
+
+Feature branch: `feat/offline-webrtc-transfer`. These results concern local feature code; they do not mean production has been updated.
+
+- `npm test`: 27 passed, 0 failed at this checkpoint. Missing modules were observed failing before implementation; cancellation-reuse and capability checks failed before their fixes.
+- Real headless Edge pages paired with `iceServers: []`, showed matching verification codes, and exchanged data.
+- Full UI check: prepared both pages, reloaded with browser offline emulation, then blocked HTTP requests while keeping LAN sockets available. Browser offline emulation also inhibits ICE, so it was not left enabled for pairing. This distinction is recorded rather than equating it with a physical WAN disconnect.
+- Receiver approved and verified a 1 MiB file and a zero-byte file. Actual browser downloads were independently checked. SHA-256 for the 1 MiB source and saved output: `631b84027d6b9e52b539c4e8373622d23032dfadc64d60af87339c9037e4f769`.
+- No page errors. A 390-pixel-wide viewport had no horizontal overflow. This is desktop Edge at a mobile width, not Android verification.
+- Transfer scripts and bundled libraries: 194,569 raw bytes and 70,538 gzip bytes at this checkpoint, excluding existing shell and license metadata. Rerun `node scripts/measure-transfer-assets.mjs` after changes.
+- Same-page prefix-verified resume and cancellation followed by another transfer pass deterministic engine tests. Corrupted digest and failed writes do not publish/acknowledge completion.
+- Browser export regression: deleting an OPFS backing entry immediately canceled its download. The bounded download fallback now materializes independent bytes before deleting staging; the same full browser check passed afterward.
+
+Remaining gates: physical Windows/Android with WAN disconnected; real camera scanning of multi-frame QRs; 64 MiB mobile export and memory measurement; large-file streaming destination; actual Wi-Fi throughput; mobile background interruption; firewall/client isolation; macOS/iOS; native PWA installation. No verified cross-device speed or universal compatibility is claimed.
+
+The following sections preserve the earlier PWA-shell verification history.
+
 Checked on October 9, 2026, in the AI Organizer checkout.
 
 ## Passed

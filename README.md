@@ -1,6 +1,6 @@
 # AppBuildersHackathon
 
-A simple one-page Progressive Web App. Plain HTML, CSS, and JavaScript with no production dependencies or build step.
+A one-page Progressive Web App with private, browser-only LAN file transfer. Plain HTML, CSS, and JavaScript with small, locally bundled QR and hashing libraries. Deployment needs no build step or runtime CDN.
 
 **Live app:** https://appbuildershackathon.vercel.app/
 
@@ -22,7 +22,7 @@ Open **http://127.0.0.1:4173**. Keep the terminal running. Stop it with Ctrl+C. 
 npm test
 ```
 
-The tests exercise installation UI behavior and the service worker's offline fallback and cache cleanup. Browser checks are still needed for native installation.
+The tests exercise PWA behavior, pairing validation, QR decoding, protocol validation, consent, integrity, cancellation, and same-page resume. Native installation and physical LAN compatibility still need device checks.
 
 ## Deploy to Vercel with GitHub
 
@@ -44,7 +44,7 @@ Installation needs HTTPS or localhost. Double-clicking `index.html` opens a `fil
 
 ## Offline and updates
 
-Visit once online and wait for **Available offline**. The worker precaches the page, styles, script, manifest, and all icons. A subsequent offline reload returns the cached page. First visits need a connection. A cache may be removed by the browser, storage pressure, or clearing site data, so offline access is not permanent storage.
+Visit once online on EACH device and wait for **Available offline**. The worker precaches the complete transfer interface, workers, bundled libraries, page, styles, manifest, and icons. A subsequent offline reload returns the cached app. First visits need a connection. A cache may be removed by the browser, storage pressure, or clearing site data, so offline access is not permanent storage.
 
 The page checks the network first; local app assets use a versioned cache. When changing cached files, **increment `APP_VERSION` in `public/sw.js` and the `app-shell-version` meta tag in `public/index.html` together**, for example to `v2`. Keep that meta tag's attribute order as written. While the next worker waits, the active worker keeps its previous page when the network delivers a different shell version, preventing new markup from mixing with old assets. A new worker normally waits until all old app tabs/windows close. Close them and reopen to activate the new version. Old caches belonging to this app are then removed. No forced reload is used.
 
@@ -52,7 +52,7 @@ To check offline behavior manually: visit online, wait for the offline-ready sta
 
 ## Current scope and browser limits
 
-This version is just the landing page and PWA foundation. It does not organize files, transfer files, run an AI model, record audio, or transcribe speech. Installing a PWA does not grant unrestricted file access or native background operation. Future file features require user selection and permissions with different API support on desktop and Android. Browser-local storage can be cleared; browser installation does not make it a backup. Device capabilities and model/storage requirements must be checked before adding local AI or transcription.
+This feature branch adds file transfer. It does not yet implement AI, organization, renaming, or transcription; those remain subsequent subsystems. Installing a PWA does not grant unrestricted file access or native background operation. File picking and saving vary across browsers. Browser-local storage can be cleared; browser installation does not make it a backup. The existing production URL is not updated until this feature is published.
 
 See [MDN installability guidance](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable) and [service worker guidance](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers).
 
@@ -67,4 +67,25 @@ See [MDN installability guidance](https://developer.mozilla.org/en-US/docs/Web/P
 
 ## Verification status
 
-Automated tests and browser results are recorded in `docs/verification.md`. The live HTTPS page loads with Available offline status. Native installation on Windows Chrome/Edge and physical Android devices still needs a device check.
+Automated tests and browser results are recorded in `docs/verification.md`. Physical Windows-to-Android LAN transfer, camera-based pairing, native installation, and large-file streaming still need device checks.
+
+## Transfer files without internet
+
+1. Prepare the current app release on both devices while online. Then connect both devices to the same local Wi-Fi with peer communication enabled. Internet access is not needed during pairing or transfer.
+2. Choose **Send files** on one device and **Receive files** on the other.
+3. Receiver scans every sender QR frame. Sender then scans every receiver reply frame. Complete pairing JSON can be pasted/imported if camera access is unavailable. Pairing expires after five minutes.
+4. Compare the verification code and confirm it on BOTH devices.
+5. Sender selects files and can uncheck exclusions. Receiver reviews and accepts selected files. No file bytes are sent before approval.
+6. Receiver saves each verified file before the next file starts. A browser download is labeled **Download requested**, because the app cannot confirm the browser completed it. Check Downloads yourself.
+
+Ordinary download export is limited to **64 MiB per file**. Windows browsers that support private storage and a user-selected streaming destination can handle larger files, subject to actual storage. This is capability-based, not an Android version promise. Keep both pages open and in the foreground. Guest Wi-Fi, client isolation, firewall settings, and browser suspension can prevent or interrupt transfers.
+
+On interruption, keep the pages and selected source files open, re-pair and confirm again, then use **Resume retained transfer** on the receiver. The stored prefix must match. Reload recovery is not supported. Cancel or end the session to discard partial receiving storage. Incoming files are never executed automatically.
+
+## Transfer development and disclosure
+
+Bundled dependencies: Nayuki QR Code generator, jsQR 1.4.0, and the SHA-256 subset of noble-hashes 2.0.1. Versions, hashes, and licenses are in `public/vendor/manifest.json` and `public/vendor/LICENSES.txt`. esbuild 0.25.12 is a development bundler. No model or AI service is used by transfer. Development is AI-assisted through Codex; the transfer subsystem is new, while the PWA shell predates this feature.
+
+`node scripts/measure-transfer-assets.mjs` reports raw and gzip script sizes. To rebuild the pinned vendor assets, run `npm ci` and `node scripts/vendor-transfer.mjs` while online. Deployment uses committed browser-ready files instead.
+
+The optional `scripts/check-transfer-browser.mjs` uses Playwright and installed Microsoft Edge. Install Playwright in your development environment or set `PLAYWRIGHT_MODULE` to its module path, start `npm start`, then run the script. It tests cached offline reload, blocks HTTP during pairing/transfer, downloads and independently hashes the result, and captures desktop/mobile-width screenshots under ignored `work/evidence/`. It is a same-PC browser check, not a physical LAN benchmark.

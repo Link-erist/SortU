@@ -1,0 +1,24 @@
+{
+  "nayukiRevision": "3c6d0b3cefb4e049dc337e82237c9644399716a8",
+  "jsQR": "1.4.0",
+  "nobleHashes": "2.0.1",
+  "esbuild": "0.25.12",
+  "assets": {
+    "qrcodegen.js": {
+      "bytes": 11606,
+      "sha256": "1456e1370ccb6518969ee68163a53b81353e3a02d28e8a252b43d03254aa02cc"
+    },
+    "jsqr.js": {
+      "bytes": 131049,
+      "sha256": "538be2159f696d02518b5b17ab11f2ea1bd9c7c65ee877f182f058e17950bb41"
+    },
+    "sha256.js": {
+      "bytes": 4477,
+      "sha256": "f2b60c49e0fdec427c6c9bc2de4db87846e0013d44f0a62ded0006f21d0cbef0"
+    },
+    "LICENSES.txt": {
+      "bytes": 13867,
+      "sha256": "6029642f5d3723a283042158b05e038afdfc681246733fadfc02be6ec1de24f3"
+    }
+  }
+}

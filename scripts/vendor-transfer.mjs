@@ -1,0 +1,21 @@
+import {build} from 'esbuild';
+import {mkdir,writeFile,readFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+await mkdir('public/vendor',{recursive:true});await mkdir('work/vendor',{recursive:true});
+const ref = '3c6d0b3cefb4e049dc337e82237c9644399716a8';
+const response = await fetch(`https://api.github.com/repos/nayuki/QR-Code-generator/commits/${ref}`);
+if (!response.ok) throw new Error(`Upstream revision lookup failed: ${response.status}`);
+const revision = (await response.json()).sha;
+const sourceResponse = await fetch(`https://raw.githubusercontent.com/nayuki/QR-Code-generator/${revision}/typescript-javascript/qrcodegen.ts`);
+if(!sourceResponse.ok)throw new Error('QR source download failed');
+const source = await sourceResponse.text();
+await writeFile('work/vendor/qrcodegen.ts',source+'\nexport default qrcodegen;\n');
+await build({entryPoints:['work/vendor/qrcodegen.ts'],outfile:'public/vendor/qrcodegen.js',format:'esm',minify:true,legalComments:'eof'});
+await build({stdin:{contents:"import jsQR from 'jsqr'; export default jsQR;",resolveDir:process.cwd()},outfile:'public/vendor/jsqr.js',bundle:true,format:'esm',minify:true,legalComments:'eof'});
+await build({stdin:{contents:"export {sha256} from '@noble/hashes/sha2.js';",resolveDir:process.cwd()},outfile:'public/vendor/sha256.js',bundle:true,format:'esm',minify:true,legalComments:'eof'});
+const nobleLicense=await readFile('node_modules/@noble/hashes/LICENSE','utf8');
+const qrLicense=await readFile('node_modules/jsqr/LICENSE','utf8');
+await writeFile('public/vendor/LICENSES.txt',`QR Code generator by Project Nayuki, revision ${revision}\n${source.slice(0,source.indexOf('namespace qrcodegen'))}\n\njsQR 1.4.0\n${qrLicense}\n\nnoble-hashes 2.0.1 (SHA-256 subset)\n${nobleLicense}`);
+const assets={};for(const name of ['qrcodegen.js','jsqr.js','sha256.js','LICENSES.txt']){const bytes=await readFile(`public/vendor/${name}`);assets[name]={bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')};}
+await writeFile('public/vendor/manifest.json',JSON.stringify({nayukiRevision:revision,jsQR:'1.4.0',nobleHashes:'2.0.1',esbuild:'0.25.12',assets},null,2)+'\n');
+console.log(JSON.stringify({revision,assets},null,2));

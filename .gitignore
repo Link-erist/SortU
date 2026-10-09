@@ -1,6 +1,3 @@
 node_modules/
-.vercel/
-.superpowers/
 work/
-outputs/
-*.log
+.superpowers/
