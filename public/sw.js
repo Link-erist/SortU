@@ -1,5 +1,5 @@
 // Increment APP_VERSION and the matching index.html meta tag together for each release.
-const APP_VERSION = 'v8';
+const APP_VERSION = 'v9';
 const CACHE_PREFIX = 'appbuildershackathon-';
 const CACHE_NAME = `${CACHE_PREFIX}${APP_VERSION}`;
 const APP_ASSETS = [
@@ -7,6 +7,14 @@ const APP_ASSETS = [
   '/ai/extract.js',
   '/ai/model-folder.js',
   '/ai/office.js',
+  '/transcribe/audio.js',
+  '/transcribe/core.js',
+  '/transcribe/model.json',
+  '/transcribe/runtime.js',
+  '/transcribe/worker.js',
+  '/vendor/transformers.js',
+  '/vendor/ort/ort-wasm-simd-threaded.asyncify.js',
+  '/vendor/TRANSCRIBE-LICENSES.txt',
   '/organizer/categories.js',
   '/vendor/inflate.js',
   '/ai/model.json',

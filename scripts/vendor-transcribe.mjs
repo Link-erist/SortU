@@ -7,7 +7,7 @@ const FILES=['config.json','generation_config.json','preprocessor_config.json','
 const sha256=bytes=>createHash('sha256').update(bytes).digest('hex');
 const ort=JSON.parse(await readFile('node_modules/onnxruntime-web/package.json','utf8')).version;
 await build({stdin:{contents:'export {pipeline,env} from "@huggingface/transformers";',resolveDir:process.cwd()},outfile:'public/vendor/transformers.js',bundle:true,format:'esm',minify:true,platform:'browser',legalComments:'eof'});
-await mkdir('public/vendor/ort',{recursive:true});await cp('node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.mjs','public/vendor/ort/ort-wasm-simd-threaded.asyncify.mjs');
+await mkdir('public/vendor/ort',{recursive:true});await cp('node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.mjs','public/vendor/ort/ort-wasm-simd-threaded.asyncify.js'); // .js: the preview server serves .mjs with the wrong MIME type
 // onnxruntime-web declares MIT in package.json but ships no license file, so the standard MIT notice is written here.
 const MIT=`MIT License
 
@@ -28,6 +28,6 @@ const library={url:`https://cdn.jsdelivr.net/npm/onnxruntime-web@${ort}/dist/ort
 const manifest={status:'Pinned transcription preparation manifest',modelId:MODEL,modelRevision:REVISION,modelBase:`https://huggingface.co/${MODEL}/resolve/${REVISION}/`,library,artifacts,cache:{model:'transcribe/model',library:'transcribe/engine'},dtype:{encoder_model:'fp16',decoder_model_merged:'q4'},requiredFeatures:['shader-f16'],requiredLimits:{},totalBytes:artifacts.reduce((sum,file)=>sum+file.bytes,library.bytes)};
 await mkdir('public/transcribe',{recursive:true});await writeFile('public/transcribe/model.json',JSON.stringify(manifest,null,2)+'\n');
 const vendor=JSON.parse(await readFile('public/vendor/manifest.json','utf8'));
-for(const name of ['transformers.js','ort/ort-wasm-simd-threaded.asyncify.mjs','TRANSCRIBE-LICENSES.txt']){const bytes=await readFile(`public/vendor/${name}`);vendor.assets[name]={bytes:bytes.length,sha256:sha256(bytes)};}
+for(const name of ['transformers.js','ort/ort-wasm-simd-threaded.asyncify.js','TRANSCRIBE-LICENSES.txt']){const bytes=await readFile(`public/vendor/${name}`);vendor.assets[name]={bytes:bytes.length,sha256:sha256(bytes)};}
 vendor.transformers='4.3.0';vendor.onnxruntimeWeb=ort;await writeFile('public/vendor/manifest.json',JSON.stringify(vendor,null,2)+'\n');
 console.log(JSON.stringify({totalBytes:manifest.totalBytes,artifacts:artifacts.length,ort},null,2));

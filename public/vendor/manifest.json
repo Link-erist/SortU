@@ -816,13 +816,13 @@
       "bytes": 544923,
       "sha256": "a182e5aabc71c3c7b507652c15209fd3c483b815a33d6714b841d0714ab6e241"
     },
-    "ort/ort-wasm-simd-threaded.asyncify.mjs": {
-      "bytes": 53057,
-      "sha256": "0966b6105cd936744498aa60df7a22cbd47af3374dbc64a9ab561c08a71e3611"
-    },
     "TRANSCRIBE-LICENSES.txt": {
       "bytes": 12638,
       "sha256": "de74c601aad8e7765b9dca0692d929a25e2f2c5ac86ab9172a9244e63a34baf5"
+    },
+    "ort/ort-wasm-simd-threaded.asyncify.js": {
+      "bytes": 53057,
+      "sha256": "0966b6105cd936744498aa60df7a22cbd47af3374dbc64a9ab561c08a71e3611"
     }
   },
   "fflate": "0.8.3",

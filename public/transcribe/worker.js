@@ -19,8 +19,10 @@ async function load(offline,progress,files) {
  // transformers.js asks for some optional files that are not pinned; answer those with 404 instead of using the network.
  const pinnedFetch=async input=>{const url=typeof input==='string'?input:input.url;return transport.specs.has(url)?transport.fetch(url):new Response(null,{status:404});};
  env.allowLocalModels=false;env.allowRemoteModels=true;env.useBrowserCache=false;env.fetch=pinnedFetch;globalThis.fetch=pinnedFetch;
+ // The library does not apply the revision option to every file, so the pinned revision is written into the URL template.
+ env.remotePathTemplate=`{model}/resolve/${manifest.modelRevision}/`;
  // Never let onnxruntime load its engine from a CDN: local loader, verified engine bytes.
- env.backends.onnx.wasm.wasmPaths={mjs:new URL('../vendor/ort/ort-wasm-simd-threaded.asyncify.mjs',import.meta.url).href};
+ env.backends.onnx.wasm.wasmPaths={mjs:new URL('../vendor/ort/ort-wasm-simd-threaded.asyncify.js',import.meta.url).href};
  env.backends.onnx.wasm.wasmBinary=await(await transport.fetch(manifest.library.url)).arrayBuffer();
  progress({stage:'Starting transcription model'});
  transcriber=await pipeline('automatic-speech-recognition',manifest.modelId,{device:'webgpu',dtype:manifest.dtype,revision:manifest.modelRevision});
