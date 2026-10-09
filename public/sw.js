@@ -1,5 +1,5 @@
 // Increment APP_VERSION and the matching index.html meta tag together for each release.
-const APP_VERSION = 'v6';
+const APP_VERSION = 'v7';
 const CACHE_PREFIX = 'appbuildershackathon-';
 const CACHE_NAME = `${CACHE_PREFIX}${APP_VERSION}`;
 const APP_ASSETS = [
@@ -229,6 +229,8 @@ const APP_ASSETS = [
 
 self.addEventListener('message', event => {
   if (event.data?.type === 'APP_VERSION') event.ports?.[0]?.postMessage({version: APP_VERSION});
+  // Sent only when the user clicks Reload on the update banner.
+  else if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('install', (event) => {

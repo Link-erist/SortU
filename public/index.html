@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#2457e8"><meta name="app-shell-version" content="v6">
+  <meta name="theme-color" content="#2457e8"><meta name="app-shell-version" content="v7">
   <meta name="description" content="Organize selected files privately and export approved copies offline.">
   <title>AppBuildersHackathon</title>
   <link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icons/mark.svg" type="image/svg+xml">
@@ -11,7 +11,7 @@
 </head>
 <body><div class="page">
   <header class="header"><a class="brand" href="/" aria-label="AppBuildersHackathon home"><img src="/icons/mark.svg" alt="" width="36" height="36"><span>AppBuildersHackathon</span></a><button id="install-button" type="button" hidden>Install app</button></header>
-  <div class="status" role="status"><span class="status-dot" aria-hidden="true"></span><span id="app-status" data-state="pending">Preparing offline access</span></div><nav class="workspace-tabs" aria-label="Workspaces"><button id="tab-organize" aria-selected="true" aria-controls="organizer-root" type="button">Organize</button><button id="tab-transfer" aria-selected="false" aria-controls="transfer-root" type="button">Transfer</button></nav><main id="main">
+  <div id="update-banner" class="update-banner" role="status" hidden><span>A new version is ready. Finish any work in progress first: reloading clears unsaved proposals and transfers.</span><button id="reload-app" type="button">Reload</button></div><div class="status" role="status"><span class="status-dot" aria-hidden="true"></span><span id="app-status" data-state="pending">Preparing offline access</span></div><nav class="workspace-tabs" aria-label="Workspaces"><button id="tab-organize" aria-selected="true" aria-controls="organizer-root" type="button">Organize</button><button id="tab-transfer" aria-selected="false" aria-controls="transfer-root" type="button">Transfer</button></nav><main id="main">
   <section id="organizer-root" class="transfer-root" aria-labelledby="organizer-title">
     <div class="transfer-heading"><p class="eyebrow">PRIVATE FILE ORGANIZER</p><h1 id="organizer-title">A place for<br>every file.</h1><p class="welcome">Turn a scattered selection into organized copies. Review the changes first, then save them.</p><p class="help"><span id="analysis-badge" class="badge">Rules-based preview</span> Runs on this device. Optional local AI can read included text and PDF files.</p></div>
     <div class="notice"><strong>Your originals stay yours.</strong><p>Only files you select are accessible. This organizer copies files and preserves their contents. Prepare this app online once, then use it offline.</p></div>
