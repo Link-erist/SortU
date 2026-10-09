@@ -1,3 +1,6 @@
 node_modules/
 work/
 .superpowers/
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+desktop/dist/
