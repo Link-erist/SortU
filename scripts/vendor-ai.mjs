@@ -1,6 +1,6 @@
 import {build} from 'esbuild';import {readFile,writeFile,mkdir,cp,readdir} from 'node:fs/promises';import {createHash} from 'node:crypto';
 await mkdir('public/ai',{recursive:true});await mkdir('public/vendor/pdf',{recursive:true});
-for(const [name,contents] of [['webllm','export {MLCEngine,prebuiltAppConfig} from "@mlc-ai/web-llm";'],['tokenizers','export {Tokenizer} from "@huggingface/tokenizers";'],['ai-hashes','export {sha1} from "@noble/hashes/legacy.js";']])await build({stdin:{contents,resolveDir:process.cwd()},outfile:`public/vendor/${name}.js`,bundle:true,format:'esm',minify:true,legalComments:'eof'});
+for(const [name,contents] of [['webllm','export {MLCEngine,prebuiltAppConfig} from "@mlc-ai/web-llm";'],['tokenizers','export {Tokenizer} from "@huggingface/tokenizers";'],['ai-hashes','export {sha1} from "@noble/hashes/legacy.js";'],['inflate','export {inflateSync} from "fflate";']])await build({stdin:{contents,resolveDir:process.cwd()},outfile:`public/vendor/${name}.js`,bundle:true,format:'esm',minify:true,legalComments:'eof'});
 await cp('node_modules/pdfjs-dist/build/pdf.mjs','public/vendor/pdf/pdf.js');await cp('node_modules/pdfjs-dist/build/pdf.worker.mjs','public/vendor/pdf/pdf.worker.js');
 for(const name of ['cmaps','standard_fonts','wasm'])await cp(`node_modules/pdfjs-dist/${name}`,`public/vendor/pdf/${name}`,{recursive:true});
 const model=JSON.parse(await readFile('docs/superpowers/plans/2026-10-09-local-ai-organizer-artifacts.json','utf8'));
@@ -12,7 +12,7 @@ model.status='Pinned runtime preparation manifest';model.requiredFeatures=['shad
 await writeFile('public/ai/model.json',JSON.stringify(model,null,2)+'\n');
 const licenses=[];for(const [pkg,path] of [['@mlc-ai/web-llm','LICENSE'],['@huggingface/tokenizers','LICENSE'],['pdfjs-dist','LICENSE']])licenses.push(`${pkg}\n${await readFile(`node_modules/${pkg}/${path}`,'utf8')}`);
 await writeFile('public/vendor/AI-LICENSES.txt',licenses.join('\n\n'));const manifest=JSON.parse(await readFile('public/vendor/manifest.json','utf8'));
-const paths=['webllm.js','tokenizers.js','ai-hashes.js','AI-LICENSES.txt',...(await readdir('public/vendor/pdf',{recursive:true})).filter(name=>/\.(js|wasm|bcmap|ttf|pfb|otf)$/.test(name)).map(name=>'pdf/'+name.replaceAll('\\','/'))];
+const paths=['webllm.js','tokenizers.js','ai-hashes.js','inflate.js','AI-LICENSES.txt',...(await readdir('public/vendor/pdf',{recursive:true})).filter(name=>/\.(js|wasm|bcmap|ttf|pfb|otf)$/.test(name)).map(name=>'pdf/'+name.replaceAll('\\','/'))];
 // The PDF directory is regenerated each run; drop its old entries so renamed files cannot linger.
 for(const name of Object.keys(manifest.assets))if(name.startsWith('pdf/'))delete manifest.assets[name];
 for(const name of paths){const bytes=await readFile(`public/vendor/${name}`);manifest.assets[name]={bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')};}

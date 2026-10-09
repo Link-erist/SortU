@@ -807,6 +807,10 @@
     "pdf/wasm/quickjs-eval.js": {
       "bytes": 6232,
       "sha256": "fe7930418e869791ce892567dbd0bc4698152b7e550b5cefa553992c56ddc325"
+    },
+    "inflate.js": {
+      "bytes": 3775,
+      "sha256": "1d6200eff8bd22fbf273b714b36116bc01e00ca6d7f1292119e20de01d5dd778"
     }
   },
   "fflate": "0.8.3",

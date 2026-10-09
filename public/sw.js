@@ -6,6 +6,8 @@ const APP_ASSETS = [
   '/ai/capabilities.js',
   '/ai/extract.js',
   '/ai/model-folder.js',
+  '/ai/office.js',
+  '/vendor/inflate.js',
   '/ai/model.json',
   '/ai/organize.js',
   '/ai/pdf.js',
