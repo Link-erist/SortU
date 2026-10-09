@@ -33,3 +33,9 @@ test('selected folder files use paths relative to the chosen folder',async()=>{
  const {filesFromInput}=await import('../public/ai/model-folder.js');const file=new File(['abc'],'shard_0.bin');Object.defineProperty(file,'webkitRelativePath',{value:'My Model/model/params/shard_0.bin'});
  assert.deepEqual([...filesFromInput([file]).keys()],['model/params/shard_0.bin']);
 });
+test('the model counts as prepared only when every pinned file is stored',async()=>{
+ const {isModelPrepared}=await import('../public/ai/model-folder.js');
+ assert.equal(await isModelPrepared(manifest,async()=>({match:async()=>new Response('abc')})),true);
+ assert.equal(await isModelPrepared(manifest,async()=>({match:async url=>url.endsWith('.wasm')?undefined:new Response('abc')})),false);
+ assert.equal(await isModelPrepared(manifest,async()=>{throw new Error('storage blocked');}),false);
+});

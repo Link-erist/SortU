@@ -33,7 +33,8 @@
       status('Checking the bundled AI model');
       runtime = createLocalRuntime({onProgress: progress => status(progress.stage)});
       await runtime.prepare();
-      status('Local AI is installed from the bundled model and works offline. Choose Local AI to use it.');
+      // Reload so the page re-checks readiness and opens the organizer with Local AI on.
+      location.reload();
     } finally {
       try { await runtime?.unload(); } catch {}
       runtime?.dispose();

@@ -119,3 +119,6 @@ dialog::backdrop {background:#17203699;}
 .update-banner {display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-top:20px;padding:12px 16px;border:1px solid #c9d7f5;background:#eef3ff;border-radius:14px;color:#253b68;font-size:13px;}
 .update-banner[hidden] {display:none;}
 .update-banner button {min-height:40px;padding:10px 18px;}
+
+/* Until Local AI is ready (or basic organization is chosen as the fallback), only the setup card is shown. */
+#organizer-root[data-ai-state="checking"] .organizer-step,#organizer-root[data-ai-state="setup"] .organizer-step,#organizer-root[data-ai-state="unsupported"] .organizer-step {display:none;}

@@ -29,3 +29,15 @@ test('blocked downloads and storage quota errors fail preparation without claimi
  const blocked=createModelTransport({manifest,fetcher:async()=>{throw new TypeError('Failed to fetch');},cacheLookup:async()=>undefined,cacheStore:async()=>{stored++;}});await assert.rejects(()=>blocked.prepareArtifacts(),/Failed to fetch/);assert.equal(stored,0);
  const full=createModelTransport({manifest,fetcher:async()=>new Response('abc'),cacheLookup:async()=>undefined,cacheStore:async(url,response)=>{await response.arrayBuffer();throw new DOMException('Storage is full.','QuotaExceededError');}});await assert.rejects(()=>full.prepareArtifacts(),error=>error.name==='QuotaExceededError');
 });
+test('browser support: Chrome and Edge are supported, Firefox rejected, other browsers untested',async()=>{
+ const {browserSupport}=await import('../public/ai/capabilities.js');const ua=userAgent=>({userAgent});
+ const chrome='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36';
+ assert.equal(browserSupport(ua(chrome)).level,'supported');assert.equal(browserSupport(ua(chrome)).name,'Chrome');
+ assert.equal(browserSupport(ua(chrome+' Edg/155.0.0.0')).name,'Edge');assert.equal(browserSupport(ua(chrome+' Edg/155.0.0.0')).level,'supported');
+ assert.equal(browserSupport(ua('Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Mobile Safari/537.36')).level,'supported');
+ assert.equal(browserSupport(ua('Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0')).level,'rejected');
+ assert.equal(browserSupport(ua('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/140.0 Mobile/15E148 Safari/605.1.15')).level,'rejected');
+ assert.equal(browserSupport(ua('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15')).level,'untested');
+ assert.equal(browserSupport(ua(chrome+' OPR/120.0.0.0')).level,'untested');assert.equal(browserSupport(ua(chrome.replace('Chrome','SamsungBrowser/27.0 Chrome'))).level,'untested');
+ assert.equal(browserSupport({userAgent:chrome,userAgentData:{brands:[{brand:'Brave',version:'155'},{brand:'Chromium',version:'155'}]}}).level,'untested');
+});

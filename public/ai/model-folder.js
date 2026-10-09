@@ -36,3 +36,6 @@ export function folderFetcher(manifest,files) {
  const paths=new Map(modelFolderEntries(manifest).map(entry=>[entry.url,entry.path]));
  return async url=>{const path=paths.get(url),file=path&&files.get(path);if(!file)throw new Error(`The saved model folder is missing ${path||'a file'}.`);return new Response(file,{status:200});};
 }
+export async function isModelPrepared(manifest,openCache=scope=>caches.open(scope)) {
+ try{for(const entry of modelFolderEntries(manifest))if(!await(await openCache(entry.scope)).match(entry.url))return false;return true;}catch{return false;}
+}
