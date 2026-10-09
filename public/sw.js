@@ -1,11 +1,32 @@
 // Increment APP_VERSION and the matching index.html meta tag together for each release.
-const APP_VERSION = 'v6';
+const APP_VERSION = 'v10';
 const CACHE_PREFIX = 'appbuildershackathon-';
 const CACHE_NAME = `${CACHE_PREFIX}${APP_VERSION}`;
 const APP_ASSETS = [
+  '/theme-init.js',
+  '/shell/shell.js',
+  '/shell/compat.js',
+  '/shell/theme.js',
   '/ai/capabilities.js',
   '/ai/extract.js',
   '/ai/model-folder.js',
+  '/ai/office.js',
+  '/transcribe/audio.js',
+  '/transcribe/core.js',
+  '/transcribe/model.json',
+  '/transcribe/runtime.js',
+  '/transcribe/ui.js',
+  '/transcribe/worker.js',
+  '/vendor/transformers.js',
+  '/vendor/ort/ort-wasm-simd-threaded.asyncify.js',
+  '/vendor/TRANSCRIBE-LICENSES.txt',
+  '/organizer/categories.js',
+  '/organizer/tree.js',
+  '/assistant/core.js',
+  '/assistant/ask.js',
+  '/assistant/ui.js',
+  '/assistant/history.js',
+  '/vendor/inflate.js',
   '/ai/model.json',
   '/ai/organize.js',
   '/ai/pdf.js',
@@ -229,6 +250,8 @@ const APP_ASSETS = [
 
 self.addEventListener('message', event => {
   if (event.data?.type === 'APP_VERSION') event.ports?.[0]?.postMessage({version: APP_VERSION});
+  // Sent only when the user clicks Reload on the update banner.
+  else if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('install', (event) => {

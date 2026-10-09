@@ -1,9 +1,10 @@
 // Save a prepared model to a user folder and load it into another browser or profile without a second download.
 // Loaded bytes are not trusted: they go through the same pinned size and hash verification as network downloads.
+import {artifactScope} from './transport.js';
 export const MARKER='ai-organizer-model.json';
 export function modelFolderEntries(manifest) {
- return [...manifest.artifacts.map(file=>({url:manifest.modelBase+file.path,path:'model/'+file.path,scope:file.path==='mlc-chat-config.json'?'webllm/config':'webllm/model'})),
-  {url:manifest.library.url,path:'library/'+manifest.library.url.split('/').pop(),scope:'webllm/wasm'}];
+ return [...manifest.artifacts.map(file=>({url:manifest.modelBase+file.path,path:'model/'+file.path,scope:artifactScope(manifest,file.path)})),
+  {url:manifest.library.url,path:'library/'+manifest.library.url.split('/').pop(),scope:artifactScope(manifest,null)}];
 }
 async function directoryFor(root,path,create) {let dir=root;const parts=path.split('/');for(const part of parts.slice(0,-1))dir=await dir.getDirectoryHandle(part,{create});return {dir,name:parts.at(-1)};}
 export async function saveModelFolder(root,{manifest,openCache=scope=>caches.open(scope),signal,onProgress=()=>{}}) {
@@ -35,4 +36,7 @@ export async function checkFolderMarker(files,manifest) {
 export function folderFetcher(manifest,files) {
  const paths=new Map(modelFolderEntries(manifest).map(entry=>[entry.url,entry.path]));
  return async url=>{const path=paths.get(url),file=path&&files.get(path);if(!file)throw new Error(`The saved model folder is missing ${path||'a file'}.`);return new Response(file,{status:200});};
+}
+export async function isModelPrepared(manifest,openCache=scope=>caches.open(scope)) {
+ try{for(const entry of modelFolderEntries(manifest))if(!await(await openCache(entry.scope)).match(entry.url))return false;return true;}catch{return false;}
 }

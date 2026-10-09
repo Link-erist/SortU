@@ -36,7 +36,7 @@ evidence.diskBytes=diskBytes;assert.equal(diskBytes,evidence.save.bytes+(await s
  const profile=process.env.AI_CHROME_PROFILE||'work/ai-chrome-profile';await rm(profile,{recursive:true,force:true});
  const {context,page,errors}=await openApp(profile,process.env.AI_BROWSER_CHANNEL||'chrome');const requests=[];page.on('request',request=>{if(!request.url().startsWith('http://127.0.0.1:4173/'))requests.push(request.url());});
  try {
-  await page.locator('#ai-mode').selectOption('local');const started=Date.now();
+  await page.locator('#tab-organize').click();await page.waitForFunction(()=>document.getElementById('organizer-root').dataset.aiState==='setup');const started=Date.now();
   await page.locator('#load-ai-folder-input').setInputFiles(folder);
   await page.waitForFunction(()=>{const status=document.getElementById('ai-status');return /^Loaded /.test(status.textContent)||status.dataset.state==='error';},{},{timeout:900000});
   evidence.loadStatus=await page.locator('#ai-status').textContent();evidence.loadMilliseconds=Date.now()-started;assert.match(evidence.loadStatus,/^Loaded /);

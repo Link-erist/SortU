@@ -1,0 +1,61 @@
+{
+  "status": "Pinned transcription preparation manifest",
+  "modelId": "Xenova/whisper-small",
+  "modelRevision": "2d67713f236afa48a18992566e7647f6ca848e13",
+  "modelBase": "https://huggingface.co/Xenova/whisper-small/resolve/2d67713f236afa48a18992566e7647f6ca848e13/",
+  "dtype": {
+    "encoder_model": "fp16",
+    "decoder_model_merged": "q4"
+  },
+  "requiredFeatures": [
+    "shader-f16"
+  ],
+  "totalBytes": 439469910,
+  "library": {
+    "url": "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.0-dev.20260914-8d85527a0/dist/ort-wasm-simd-threaded.asyncify.wasm",
+    "bytes": 26861777,
+    "sha256": "49871f5a4409519797e127440868a6d1923339d9185907f301a5b2a1d90af082"
+  },
+  "artifacts": [
+    {
+      "path": "config.json",
+      "bytes": 2232,
+      "gitOid": "a239fdd538b77d3c496d13d085848eca67fe993a"
+    },
+    {
+      "path": "generation_config.json",
+      "bytes": 3837,
+      "gitOid": "66f96818620f7b67c276aed4a35bedc4f6986dc3"
+    },
+    {
+      "path": "preprocessor_config.json",
+      "bytes": 339,
+      "gitOid": "91876762a536a746d268353c5cba57286e76b058"
+    },
+    {
+      "path": "tokenizer.json",
+      "bytes": 2480466,
+      "gitOid": "1e95340ff836fad1b5932e800fb7b8c5e6d78a74"
+    },
+    {
+      "path": "tokenizer_config.json",
+      "bytes": 282683,
+      "gitOid": "d13b786c04765fb1a06492b53587752cd67665ea"
+    },
+    {
+      "path": "onnx/encoder_model_fp16.onnx",
+      "bytes": 176608338,
+      "sha256": "6e4af405c8b3e1f97ec74fc009de3112e39f839a3d924761ae089a15d5a70663"
+    },
+    {
+      "path": "onnx/decoder_model_merged_q4.onnx",
+      "bytes": 233230238,
+      "sha256": "7de7841243c9f128780dbd18949bca0c7291866f1435b8dafb577bbf445e973b"
+    }
+  ],
+  "cache": {
+    "model": "transcribe/model",
+    "library": "transcribe/engine"
+  },
+  "requiredLimits": {}
+}

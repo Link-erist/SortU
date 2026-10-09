@@ -60,3 +60,56 @@ test('invisible formatting characters are removed from model categories',async()
  const ai=createAiOrganizer({runtimeFactory:()=>({...runtime(),generate:async({entry})=>({raw:JSON.stringify({fileId:entry.id,category:'Tax​es‮',stem:'invoice',reason:'Invoice.',sufficient:true})})}),extractor:async entry=>({fileId:entry.id,text,status:'text',truncated:false,evidence:'Text'})});
  assert.equal((await ai.analyze({inventory:createInventory([new File([text],'a.txt')]),rules:defaultRules(),guide:'',revision:'one'})).suggestions[0].category,'Taxes');
 });
+test('the model receives file metadata, categories and only included batch names; topics are cleaned',async()=>{
+ const {createAiOrganizer}=await import('../public/ai/organize.js');const text='Software requirements specification for the Harbor inventory system with stock tracking and supplier reports.';const seen=[];
+ const ai=createAiOrganizer({runtimeFactory:()=>({...runtime(),generate:async args=>{seen.push(args);return {raw:JSON.stringify({fileId:args.entry.id,category:'Projects',topic:'Har​bor ',stem:'harbor-spec',reason:'Spec.',sufficient:true})};}}),extractor:async entry=>({fileId:entry.id,text,status:'text',truncated:false,evidence:'Text'})});
+ const spec=new File([text],'spec.json',{lastModified:Date.UTC(2026,9,1)});Object.defineProperty(spec,'webkitRelativePath',{value:'work/harbor/spec.json'});
+ const inventory=createInventory([spec,new File([text],'notes.txt'),new File(['secret'],'private-salary.txt')]);
+ const result=await ai.analyze({inventory,rules:defaultRules(),exclusions:{excludedIds:[inventory.entries[2].id]},guide:'',revision:'one',categories:['Projects','Invoices']});
+ assert.equal(seen[0].entry.folder,'work/harbor');assert.equal(seen[0].entry.extension,'.json');assert.equal(seen[0].entry.size,text.length);assert.equal(seen[0].entry.modified,'2026-10-01');assert.deepEqual(seen[0].categories,['Projects','Invoices']);
+ assert.equal(seen[0].otherFiles,undefined);assert.ok(seen.every(args=>!JSON.stringify(args).includes('private-salary')));
+ assert.equal(result.suggestions[0].topic,'Harbor');
+});
+const longText=topic=>`Meeting minutes and planning notes for ${topic}, covering milestones, testing assignments and the next review date.`;
+function topicRuntime(topics,merge,calls=[]) {
+ return ()=>({...runtime(),generate:async args=>{calls.push(args);if(args.kind==='merge')return {raw:typeof merge==='function'?merge(args):JSON.stringify(merge)};const topic=topics[args.entry.name];return {raw:JSON.stringify({fileId:args.entry.id,category:topic[0],topic:topic[1],stem:'notes',reason:'Notes.',sufficient:true})};}});
+}
+test('the merge step groups near-duplicate topics within a category using only group summaries',async()=>{
+ const {createAiOrganizer}=await import('../public/ai/organize.js');const calls=[];
+ const topics={'a.txt':['Projects','Atlas Project'],'b.txt':['Projects','Project Atlas'],'c.txt':['Projects','Harbor'],'d.txt':['Invoices','Acme']};
+ const ai=createAiOrganizer({runtimeFactory:topicRuntime(topics,args=>{const id=name=>args.groups.find(group=>group.topic===name).id;return JSON.stringify({merges:[{from:id('Project Atlas'),into:id('Atlas Project')}]});},calls),extractor:async entry=>({fileId:entry.id,text:longText(entry.name),status:'text',truncated:false,evidence:'Text'})});
+ const inventory=createInventory(Object.keys(topics).map(name=>new File([longText(name)],name)));const result=await ai.analyze({inventory,rules:defaultRules(),guide:'',revision:'one'});
+ const merge=calls.find(args=>args.kind==='merge');assert.ok(merge);assert.equal(merge.groups.length,4);assert.ok(!JSON.stringify(merge).includes('a.txt')&&!JSON.stringify(merge).includes('Meeting minutes'));
+ assert.deepEqual(result.suggestions.map(item=>item.topic),['Atlas Project','Atlas Project','Harbor','Acme']);assert.match(result.suggestions[1].reason,/Atlas Project/);
+});
+test('invalid merges are ignored: cross-category, unknown ids, self and cycles; analysis still completes',async()=>{
+ const {createAiOrganizer}=await import('../public/ai/organize.js');const topics={'a.txt':['Projects','Atlas'],'b.txt':['Invoices','Acme'],'c.txt':['Projects','Harbor']};
+ for(const merge of [{merges:[{from:'g2',into:'g1'}]},{merges:[{from:'g9',into:'g1'}]},{merges:[{from:'g1',into:'g1'}]},{merges:[{from:'g1',into:'g3'},{from:'g3',into:'g1'}]},'not json']) {
+  const ai=createAiOrganizer({runtimeFactory:topicRuntime(topics,merge),extractor:async entry=>({fileId:entry.id,text:longText(entry.name),status:'text',truncated:false,evidence:'Text'})});
+  const result=await ai.analyze({inventory:createInventory(Object.keys(topics).map(name=>new File([longText(name)],name))),rules:defaultRules(),guide:'',revision:'one'});
+  assert.deepEqual(result.suggestions.map(item=>item.topic),['Atlas','Acme','Harbor'],JSON.stringify(merge));
+ }
+});
+test('the merge step is skipped when there is nothing to merge',async()=>{
+ const {createAiOrganizer}=await import('../public/ai/organize.js');const calls=[];const topics={'a.txt':['Projects','Atlas'],'b.txt':['Invoices','']};
+ const ai=createAiOrganizer({runtimeFactory:topicRuntime(topics,{merges:[]},calls),extractor:async entry=>({fileId:entry.id,text:longText(entry.name),status:'text',truncated:false,evidence:'Text'})});
+ await ai.analyze({inventory:createInventory(Object.keys(topics).map(name=>new File([longText(name)],name))),rules:defaultRules(),guide:'',revision:'one'});assert.equal(calls.some(args=>args.kind==='merge'),false);
+});
+test('AI proposals place files in Category/Topic folders; files without a topic stay one level deep',async()=>{
+ const session=createOrganizerSession(),inventory=createInventory([new File(['a'],'a.json'),new File(['b'],'b.txt'),new File(['c'],'c.txt')]);session.setInputs({inventory,rules:defaultRules()});
+ const ticket=session.beginAnalysis({modelId:'model',guideDigest:'',manualKeys:[]}),[a,b,c]=inventory.entries.map(entry=>entry.id);
+ const result={suggestions:[{fileId:a,category:'Projects',topic:'Atlas',stem:'atlas-spec',reason:'Spec.',sufficient:true},{fileId:b,category:'Projects',topic:'Atlas',stem:'atlas-spec',reason:'Spec.',sufficient:true},{fileId:c,category:'Invoices',topic:'',stem:'acme-invoice',reason:'Invoice.',sufficient:true}],evidence:[a,b,c].map(fileId=>({fileId,kind:'text'})),model:'model',excludedIds:[]};
+ const paths=session.acceptAnalysis(ticket,result).rows.map(row=>row.targetPath);
+ assert.deepEqual(paths,['Projects/Atlas/atlas-spec.json','Projects/Atlas/atlas-spec.txt','Invoices/acme-invoice.txt']);
+});
+test('model topics are capped at three words so related files can share a folder',async()=>{
+ const {createAiOrganizer}=await import('../public/ai/organize.js');const text='Resume for Jordan Reyes, an IT support specialist with experience maintaining Windows workstations and networks.';
+ const ai=createAiOrganizer({runtimeFactory:()=>({...runtime(),generate:async({entry})=>({raw:JSON.stringify({fileId:entry.id,category:'Resumes',topic:'Jordan Reyes IT support specialist Resume',stem:'resume',reason:'Resume.',sufficient:true})})}),extractor:async entry=>({fileId:entry.id,text,status:'text',truncated:false,evidence:'Text'})});
+ assert.equal((await ai.analyze({inventory:createInventory([new File([text],'a.txt')]),rules:defaultRules(),guide:'',revision:'one'})).suggestions[0].topic,'Jordan Reyes IT');
+});
+test('spreadsheets are not skipped by the short-text rule, which is meant for vague notes',async()=>{
+ const {createAiOrganizer}=await import('../public/ai/organize.js');let generated=0;
+ const ai=createAiOrganizer({runtimeFactory:()=>({...runtime(),generate:async args=>{generated++;return runtime().generate(args);}}),extractor:async entry=>({fileId:entry.id,text:'Invoices 2026\nInvoice number\nClient\nAmount due\nAcme Supplies',status:'text',truncated:false,evidence:'Excel document text.'})});
+ const result=await ai.analyze({inventory:createInventory(['a.xlsx','b.ods','c.csv'].map(name=>new File(['x'],name))),rules:defaultRules(),guide:'',revision:'one'});
+ assert.equal(generated,3);assert.ok(result.evidence.every(item=>item.kind==='text'));
+});

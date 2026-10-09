@@ -16,3 +16,14 @@ test('suggestion categories stay free text in the grammar and validator',async()
  const {validateSuggestion,responseFormat,CATEGORIES}=await import('../public/ai/schema.js');assert.ok(CATEGORIES.includes('Other'));assert.equal(JSON.parse(responseFormat('file','one').schema).properties.category.enum,undefined);
  assert.equal(validateSuggestion(JSON.stringify({fileId:'one',category:'IT Support',stem:'resume',reason:'Resume.',sufficient:true}),{fileId:'one'}).category,'IT Support');
 });
+test('suggestions may carry a safe topic subfolder; it is optional and validated like a category',async()=>{
+ const {validateSuggestion,responseFormat}=await import('../public/ai/schema.js');const valid={fileId:'one',category:'Projects',topic:'Atlas',stem:'atlas-spec',reason:'Spec.',sufficient:true};
+ assert.equal(validateSuggestion(JSON.stringify(valid),{fileId:'one'}).topic,'Atlas');assert.equal(validateSuggestion(JSON.stringify({...valid,topic:''}),{fileId:'one'}).topic,'');
+ const {topic,...withoutTopic}=valid;void topic;assert.equal(validateSuggestion(JSON.stringify(withoutTopic),{fileId:'one'}).topic,'');
+ for(const bad of ['../x','a/b','C:','x'.repeat(61),'..'])assert.throws(()=>validateSuggestion(JSON.stringify({...valid,topic:bad}),{fileId:'one'}),undefined,bad);
+ assert.ok(JSON.parse(responseFormat('file','one').schema).required.includes('topic'));
+});
+test('merge responses can only reference the supplied group ids',async()=>{
+ const {responseFormat}=await import('../public/ai/schema.js');const schema=JSON.parse(responseFormat('merge',['g1','g2']).schema);
+ assert.deepEqual(schema.properties.merges.items.properties.from.enum,['g1','g2']);assert.deepEqual(schema.properties.merges.items.properties.into.enum,['g1','g2']);assert.equal(schema.properties.merges.items.additionalProperties,false);
+});

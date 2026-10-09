@@ -56,7 +56,7 @@ export function createOrganizerSession() {
         if(!row.included)return row;const suggestion=byId.get(row.fileId),entry=inputs.inventory.entries.find(e=>e.id===row.fileId),kind=evidence.find(e=>e.fileId===row.fileId).kind;
         let target=row.targetPath;
         if(suggestion.sufficient){const parts=target.split('/');if(!manual.has('naming'))parts[parts.length-1]=safeSegment(suggestion.stem,true)+entry.extension;
-          if(!manual.has('groupBy')&&inputs.rules.groupBy==='type')parts.splice(0,parts.length-1,safeSegment(suggestion.category));target=parts.join('/');}
+          if(!manual.has('groupBy')&&inputs.rules.groupBy==='type')parts.splice(0,parts.length-1,...[suggestion.category,suggestion.topic].filter(Boolean).map(part=>safeSegment(part)));target=parts.join('/');}
         target=keepBoth(target,used);used.push(target);
         const outcome=evidence.find(item=>item.fileId===row.fileId);
         return {...row,targetPath:target,operation:target===entry.sourcePath?'unchanged':'organize',reason:kind==='metadata'?`${row.reason} Metadata-only fallback. ${outcome.detail||''}`.trimEnd():`AI based on ${kind==='truncated'?'a truncated excerpt':'extracted text'}. ${suggestion.reason}`};
@@ -69,6 +69,13 @@ export function createOrganizerSession() {
       if (!proposal.rows.some(r => r.fileId === fileId && r.included)) throw new Error('Cannot edit an excluded or unknown file.');
       proposal = finalize({...proposal, rows: proposal.rows.map(r => r.fileId === fileId ? {...r, targetPath: path, operation: 'edit', reason: 'Target edited by you.'} : r)});
       validateProposal(proposal, inputs.inventory); return proposal;
+    },
+    // Several target edits at once (the assistant's Apply). Validated as a whole: on any error nothing changes.
+    editTargets(targets, reason = 'Target edited by you.') {
+      if (!proposal) throw new Error('Generate a proposal first.');
+      for (const fileId of targets.keys()) if (!proposal.rows.some(r => r.fileId === fileId && r.included)) throw new Error('Cannot edit an excluded or unknown file.');
+      const candidate = finalize({...proposal, rows: proposal.rows.map(r => targets.has(r.fileId) ? {...r, targetPath: targets.get(r.fileId), operation: 'edit', reason} : r)});
+      validateProposal(candidate, inputs.inventory); invalidate(); proposal = finalize(candidate); return proposal;
     },
     approve() {
       if (!proposal || !inputs.guideResolved) throw new Error('Generate a current proposal first.');

@@ -61,7 +61,7 @@ test('offline navigation returns the installed page', async () => {
 
 test('online navigation returns fresh content, then caches it for offline reload', async () => {
   let offline = false;
-  const page = '<meta name="app-shell-version" content="v6">fresh page';
+  const page = '<meta name="app-shell-version" content="v10">fresh page';
   const sw = worker(async () => {
     if (offline) throw new Error('offline');
     return new Response(page);
@@ -77,7 +77,7 @@ test('an active worker keeps the old shell coherent while a new release waits', 
   let offline = false;
   const sw = worker(async () => {
     if (offline) throw new Error('offline');
-    return new Response('<meta name="app-shell-version" content="v7">new markup needing v7 assets');
+    return new Response('<meta name="app-shell-version" content="v11">new markup needing v11 assets');
   });
   await sw.lifecycle('install');
   assert.equal(await (await sw.request('/')).text(), 'cached /');
@@ -111,11 +111,14 @@ test('worker leaves cross-origin requests and writes to the browser', async () =
   assert.equal(await sw.request('/', 'cors', 'POST'), undefined);
 });
 
-function app({ standalone = false, registrationFails = false, workerVersion = 'v6' } = {}) {
+function app({ standalone = false, registrationFails = false, workerVersion = 'v10', waiting = null, controlled = true } = {}) {
   const handlers = new Map();
   const button = { hidden: true, disabled: false, addEventListener: (type, fn) => handlers.set(`button:${type}`, fn) };
   const status = { textContent: 'Getting ready', dataset: {} };
-  const elements = { 'install-button': button, 'app-status': status };
+  const banner = { hidden: true }, reload = { addEventListener: (type, fn) => handlers.set(`reload:${type}`, fn) };
+  const elements = { 'install-button': button, 'app-status': status, 'update-banner': banner, 'reload-app': reload };
+  const registration = { waiting, addEventListener: (type, fn) => handlers.set(`registration:${type}`, fn) };
+  let reloads = 0;
   const context = {
     window: {
       isSecureContext: true,
@@ -124,22 +127,25 @@ function app({ standalone = false, registrationFails = false, workerVersion = 'v
     },
     navigator: {
       serviceWorker: {
-        register: async () => { if (registrationFails) throw new Error('unavailable'); },
+        register: async () => { if (registrationFails) throw new Error('unavailable'); return registration; },
+        controller: controlled ? {} : null,
+        addEventListener: (type, fn) => handlers.set(`sw:${type}`, fn),
         ready: Promise.resolve({ active: { postMessage(_message, ports) { ports[0].postMessage({version: workerVersion}); } } })
       }
     },
-    document: { getElementById: (id) => elements[id], querySelector: () => ({content:'v6'}) },
+    document: { getElementById: (id) => elements[id], querySelector: () => ({content:'v10'}) },
     MessageChannel: class {
       constructor() {
         this.port1 = {onmessage: null, close() {}};
         this.port2 = {postMessage: data => queueMicrotask(() => this.port1.onmessage?.({data})), close() {}};
       }
     }, setTimeout, clearTimeout,
-    console: { warn() {} }
+    console: { warn() {} },
+    location: { reload: () => { reloads++; } }
   };
   vm.runInNewContext(source('public/app.js'), context);
   return {
-    button, status,
+    button, status, banner, registration, get reloads() { return reloads; },
     async fire(type, event = {}) {
       assert.ok(handlers.has(type), `app must handle ${type}`);
       await handlers.get(type)(event);
@@ -185,4 +191,44 @@ test('failed worker registration does not claim offline availability', async () 
 test('an older active worker does not claim the new transfer assets are ready offline',async()=>{
   const ui=app({workerVersion:'v1'});await ui.flush();
   assert.equal(ui.status.dataset.state,'pending');assert.match(ui.status.textContent,/Close all app windows/);
+});
+
+test('a waiting update shows the reload banner; reload activates it and reloads once', async () => {
+  const messages = [];
+  const ui = app({ waiting: { postMessage: (message) => messages.push(message) } });
+  await ui.flush();
+  assert.equal(ui.banner.hidden, false);
+  await ui.fire('reload:click');
+  assert.equal(JSON.stringify(messages), JSON.stringify([{ type: 'SKIP_WAITING' }]));
+  await ui.fire('sw:controllerchange');
+  await ui.fire('sw:controllerchange');
+  assert.equal(ui.reloads, 1);
+});
+
+test('an update found later shows the banner only once it is installed', async () => {
+  const ui = app();
+  await ui.flush();
+  assert.equal(ui.banner.hidden, true);
+  const worker = { state: 'installing', postMessage() {}, addEventListener(type, fn) { this.listener = fn; } };
+  ui.registration.installing = worker;
+  await ui.fire('registration:updatefound');
+  assert.equal(ui.banner.hidden, true);
+  worker.state = 'installed'; ui.registration.waiting = worker; worker.listener();
+  assert.equal(ui.banner.hidden, false);
+});
+
+test('the first install never shows the update banner', async () => {
+  const ui = app({ waiting: { postMessage() {} }, controlled: false });
+  await ui.flush();
+  assert.equal(ui.banner.hidden, true);
+});
+
+test('the worker activates a waiting release only when asked', async () => {
+  let skipped = 0;
+  const handlers = new Map();
+  vm.runInNewContext(source('public/sw.js'), { self: { location: { origin }, addEventListener: (type, fn) => handlers.set(type, fn), skipWaiting: () => { skipped++; }, clients: { claim: async () => {} } }, caches: {}, fetch: async () => {}, URL, Response, Promise });
+  handlers.get('message')({ data: { type: 'OTHER' } });
+  assert.equal(skipped, 0);
+  handlers.get('message')({ data: { type: 'SKIP_WAITING' } });
+  assert.equal(skipped, 1);
 });

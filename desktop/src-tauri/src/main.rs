@@ -9,6 +9,8 @@ use tauri::{WebviewUrl, WebviewWindowBuilder};
 const BOOTSTRAP: &str = include_str!("../../web/desktop-bootstrap.js");
 // On Windows, custom protocols are served as http://<scheme>.localhost and the app itself as http://tauri.localhost.
 const APP_ORIGIN: &str = "http://tauri.localhost";
+// Bundled model folders next to the executable that may be served; nothing else in that directory is reachable.
+const MODEL_FOLDERS: [&str; 2] = ["model", "transcribe-model"];
 
 fn portable_dir() -> PathBuf {
     std::env::current_exe()
@@ -24,7 +26,9 @@ fn bundled_model_file(root: &Path, request_path: &str) -> Option<PathBuf> {
         && relative
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | '/'))
-        && relative.split('/').all(|part| !part.is_empty() && part != "." && part != "..");
+        && relative
+            .split('/')
+            .all(|part| !part.is_empty() && part != "." && part != "..");
     if !safe {
         return None;
     }
@@ -45,15 +49,24 @@ fn respond(status: StatusCode, body: Vec<u8>) -> Response<Vec<u8>> {
 
 fn main() {
     let dir = portable_dir();
-    let model_root = dir.join("model");
     tauri::Builder::default()
-        .register_uri_scheme_protocol("model", move |_ctx, request| {
-            if request.method() != "GET" {
-                return respond(StatusCode::METHOD_NOT_ALLOWED, Vec::new());
-            }
-            match bundled_model_file(&model_root, request.uri().path()).map(std::fs::read) {
-                Some(Ok(bytes)) => respond(StatusCode::OK, bytes),
-                _ => respond(StatusCode::NOT_FOUND, Vec::new()),
+        .register_uri_scheme_protocol("model", {
+            let dir = dir.clone();
+            move |_ctx, request| {
+                if request.method() != "GET" {
+                    return respond(StatusCode::METHOD_NOT_ALLOWED, Vec::new());
+                }
+                // The first path segment picks the bundled folder: /model/... or /transcribe-model/...
+                let path = request.uri().path().trim_start_matches('/');
+                let (folder, rest) = path.split_once('/').unwrap_or((path, ""));
+                let file = MODEL_FOLDERS
+                    .contains(&folder)
+                    .then(|| bundled_model_file(&dir.join(folder), rest))
+                    .flatten();
+                match file.map(std::fs::read) {
+                    Some(Ok(bytes)) => respond(StatusCode::OK, bytes),
+                    _ => respond(StatusCode::NOT_FOUND, Vec::new()),
+                }
             }
         })
         .setup(move |app| {

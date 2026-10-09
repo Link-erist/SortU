@@ -1,9 +1,14 @@
 import {sha256} from '../vendor/sha256.js';
 import {sha1} from '../vendor/ai-hashes.js';
+// Cache Storage scope for each pinned file. The organizer model keeps WebLLM's scopes; other models name theirs in the manifest.
+export function artifactScope(manifest,path) {
+ if(manifest.cache)return path===null?manifest.cache.library:manifest.cache.model;
+ return path===null?'webllm/wasm':path==='mlc-chat-config.json'?'webllm/config':'webllm/model';
+}
 const hex=bytes=>Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
 export function createModelTransport({manifest,offline=false,onProgress=()=>{},transferStage='Downloading model',signal,fetcher=globalThis.fetch.bind(globalThis),cacheLookup,cacheStore}={}) {
- const specs=new Map(manifest.artifacts.map(file=>[manifest.modelBase+file.path,{...file,scope:file.path==='mlc-chat-config.json'?'webllm/config':'webllm/model'}]));
- specs.set(manifest.library.url,{...manifest.library,scope:'webllm/wasm'});let transferred=0;
+ const specs=new Map(manifest.artifacts.map(file=>[manifest.modelBase+file.path,{...file,scope:artifactScope(manifest,file.path)}]));
+ specs.set(manifest.library.url,{...manifest.library,scope:artifactScope(manifest,null)});let transferred=0;
  const check=()=>{if(signal?.aborted)throw new Error('Model preparation canceled.');};
  async function cacheFor(url){return caches.open(specs.get(url).scope);}
  async function verify(response,spec,{network=false}={}) {
