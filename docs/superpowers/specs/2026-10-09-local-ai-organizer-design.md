@@ -1,6 +1,6 @@
 # Local AI Organizer: proposed next milestone
 
-Status: written design for user review. Product implementation, dependency installation, model downloads, and publication are not authorized by this document alone.
+Status: written design approved by the user on October 9, 2026. Implementation-plan review is pending. Product implementation, dependency installation, model downloads, and publication have not started.
 Date: October 9, 2026.
 Base: organizer branch `feat/organizer-core`, commit `ed0d5d2`.
 
@@ -82,4 +82,4 @@ Update the existing inventory wording: AI mode reads included supported files fo
 6. Measure download size, initialization time, per-file inference time, and memory where a supported tool exists. Mark unmeasured metrics unverified. Demonstrate on the actual midrange Windows demo machine before claiming readiness. Physical Android remains a separate gate.
 7. Rerun the current 55-test baseline, organizer export/browser checks, Transfer regression, offline cache coherence, syntax checks, and independent code review after implementation.
 
-No new product dependencies or model assets were installed for this design. No AI performance or compatibility benchmark has been run. Approval of this written design is the next gate before creating the implementation plan.
+No new product dependencies or model assets were installed for this design. No AI performance or compatibility benchmark has been run. The user approved this written design; the next gate is review of the implementation plan.
