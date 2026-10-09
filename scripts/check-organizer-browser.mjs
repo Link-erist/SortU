@@ -17,13 +17,13 @@ try {
   await page.locator('#organizer-files').setInputFiles(Object.keys(fixtures).map(name=>`work/evidence/organizer-fixtures/${name}`));
   await page.locator('#generate-proposal').click();assert.match(await page.locator('#proposal-list').textContent(),/Annual Report/);
   await page.locator('#approve-proposal').click();assert.equal(await page.locator('#export-zip').isEnabled(),true);
-  await page.locator('#proposal-list input').first().fill('../unsafe.txt');assert.equal(await page.locator('#export-zip').isEnabled(),false);
+  await page.locator('#proposal-area summary',{hasText:'Edit individual paths'}).click();await page.locator('#proposal-list input').first().fill('../unsafe.txt');assert.equal(await page.locator('#export-zip').isEnabled(),false);
   await page.locator('#approve-proposal').click();assert.equal(await page.locator('#export-zip').isEnabled(),false);
   await page.locator('#proposal-list input').first().fill('Documents/edited.txt');await page.locator('#approve-proposal').click();
   await page.locator('#tab-transfer').click();await page.locator('#choose-send').click();await page.waitForFunction(()=>document.getElementById('pairing-output').value.startsWith('{'));
   const pairing=await page.locator('#pairing-output').inputValue();await page.locator('#tab-organize').click();assert.equal(await page.locator('#export-zip').isEnabled(),true);
   await page.locator('#tab-transfer').click();assert.equal(await page.locator('#pairing-output').inputValue(),pairing);await page.locator('#end-session').click();await page.locator('#tab-organize').click();
-  await page.locator('#organizer-root summary',{hasText:'Add instructions'}).click();await page.locator('#organizer-instructions').fill('Sort by meaning');await page.locator('#generate-proposal').click();assert.match(await page.locator('#organizer-status').textContent(),/Unsupported/);assert.equal(await page.locator('#export-zip').isEnabled(),false);
+  await page.locator('#organizer-root summary',{hasText:'More options'}).click();await page.locator('#organizer-instructions').fill('Sort by meaning');await page.locator('#generate-proposal').click();assert.match(await page.locator('#organizer-status').textContent(),/Unsupported/);assert.equal(await page.locator('#export-zip').isEnabled(),false);
   await page.locator('#organizer-instructions').fill('界'.repeat(3000));await page.locator('#generate-proposal').click();assert.match(await page.locator('#organizer-status').textContent(),/KiB/);
   await page.locator('#use-automatic').click();await page.locator('#generate-proposal').click();await page.locator('#proposal-area').waitFor({state:'visible'});
   await page.locator('#organizer-instructions').fill('');await writeFile('work/evidence/organizer-guide.md','Group by: type\nNaming: project_{stem}_{index}\nExclude: *.tmp');

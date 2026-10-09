@@ -21,6 +21,7 @@ const APP_ASSETS = [
   '/vendor/ort/ort-wasm-simd-threaded.asyncify.js',
   '/vendor/TRANSCRIBE-LICENSES.txt',
   '/organizer/categories.js',
+  '/organizer/tree.js',
   '/vendor/inflate.js',
   '/ai/model.json',
   '/ai/organize.js',

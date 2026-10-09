@@ -6,6 +6,7 @@ import {releaseDownloadResources} from '../transfer/resources.js';
 import {mountAiControls} from '../ai/ui.js';
 import {MODEL_ID} from '../ai/organize.js';
 import {sha256} from '../vendor/sha256.js';
+import {folderTree,renderTree} from './tree.js';
 
 export function mountOrganizer(root,{settingsRoot}={}) {
   // Model controls live on the Settings page; everything else is inside this page.
@@ -20,8 +21,11 @@ export function mountOrganizer(root,{settingsRoot}={}) {
     $('#cancel-ai').hidden=$('#cancel-ai-setup').hidden=!aiControls?.isBusy();
     for(const el of [...root.querySelectorAll('[data-setting]'),...(settingsRoot?.querySelectorAll('[data-setting]')||[])]) el.disabled=!!job;
     for(const el of root.querySelectorAll('#inventory-list input, #proposal-list input')) el.disabled=!!job;
+    $('#redo-proposal').disabled=!!job||!session.proposal;
+    // Content (Local AI) is offered only when the model is ready on this device.
+    const content=root.querySelector('input[name="organize-by"][value="content"]');content.disabled=!!job||root.dataset.aiState!=='ready';
   }
-  function invalidate() {session.reset();permit=null;$('#proposal-area').hidden=true;buttons();}
+  function invalidate() {session.reset();permit=null;$('#proposal-area').hidden=true;$('#proposal-empty').hidden=false;buttons();}
   function settings() {
     if(guidePending||(!automatic&&guideError)) throw new Error(guidePending?'Wait for the guide to finish loading.':guideError);
     if(automatic) return resolveRules({guides:readme||guideError||$('#organizer-instructions').value.trim()?[{rules:{},errors:[],unsupported:[]}]:[],controls,automatic:true});
@@ -56,14 +60,41 @@ export function mountOrganizer(root,{settingsRoot}={}) {
       const reason=document.createElement('p');reason.className='help';reason.textContent=row.included?row.reason:`Excluded: ${row.reason}`;item.append(reason);$('#proposal-list').append(item);
     }
     $('#proposal-summary').textContent=`${proposal.rows.filter(r=>r.included).length} included, ${proposal.rows.filter(r=>!r.included).length} excluded. ${proposal.warnings.join(' ')}`;
-    $('#proposal-area').hidden=false;treeView();buttons();
+    $('#proposal-area').hidden=false;$('#proposal-empty').hidden=true;treeView();buttons();
   }
-  function treeView() {$('#proposal-tree').textContent=session.proposal?.rows.filter(r=>r.included).map(r=>r.targetPath).sort().join('\n')||'';}
-  for(const selector of ['#organizer-files','#organizer-folder']) listen(selector,'change',()=>{
+  function treeView() {$('#proposal-tree').replaceChildren(renderTree(document,folderTree(session.proposal?.rows.filter(r=>r.included).map(r=>r.targetPath)||[])));}
+  function selectFiles(files) {
     invalidate();excluded=new Set();
-    try {inventory=createInventory(Array.from($(selector).files));inventoryView();status('Files selected. Review settings, then generate a proposal.');}
+    try {inventory=createInventory(files);inventoryView();status('Files selected. Choose how to organize, then click Organize.');}
     catch(error) {inventory=null;inventoryView();status(error.message,true);}
+  }
+  for(const selector of ['#organizer-files','#organizer-folder']) listen(selector,'change',()=>selectFiles(Array.from($(selector).files)));
+  // Drag and drop accepts files only; folders are chosen with "Select a folder" so their paths are kept.
+  listen('#organizer-drop','dragover',event=>{event.preventDefault();if(!job)$('#organizer-drop').dataset.over='true';});
+  listen('#organizer-drop','dragleave',()=>{delete $('#organizer-drop').dataset.over;});
+  listen('#organizer-drop','drop',event=>{
+    event.preventDefault();delete $('#organizer-drop').dataset.over;if(job)return;
+    const items=Array.from(event.dataTransfer?.items||[]),folders=items.some(item=>item.webkitGetAsEntry?.()?.isDirectory);
+    const files=items.length?items.filter(item=>item.kind==='file'&&!item.webkitGetAsEntry?.()?.isDirectory).map(item=>item.getAsFile()).filter(Boolean):Array.from(event.dataTransfer?.files||[]);
+    if(!files.length){status(folders?'To organize a folder, use Select a folder.':'No files were dropped.',true);return;}
+    selectFiles(files);if(folders)status('Dropped folders were skipped. To organize a folder, use Select a folder.');
   });
+  const organizeBy=()=>root.querySelector('input[name="organize-by"]:checked')?.value||'type';
+  // The organize-by choice drives both the analysis mode and the basic grouping rule.
+  function applyOrganizeBy() {
+    const value=organizeBy();
+    if(value==='content')$('#ai-mode').value='local';
+    else {$('#ai-mode').value='rules';$('#group-by').value=value;controls.groupBy=value;}
+    modeChanged();status('Settings changed. Click Organize to see the proposal.');
+  }
+  for(const radio of root.querySelectorAll('input[name="organize-by"]')){radio.addEventListener('change',applyOrganizeBy);removers.push(()=>radio.removeEventListener('change',applyOrganizeBy));}
+  function modeChanged() {
+    const local=aiControls.getMode()==='local';
+    const checked=local?'content':(organizeBy()==='content'?$('#group-by').value:organizeBy());root.querySelector(`input[name="organize-by"][value="${checked}"]`).checked=true;
+    $('#analysis-badge').textContent=local?'Local AI':'Basic organization';
+    $('#organize-by-help').textContent=local?'Content: Local AI reads the documents and chooses folders and names by subject.':root.dataset.aiState==='ready'?'Sorted by name and metadata only. Choose Content to let Local AI read the documents.':'Sorted by name and metadata only. Content needs Local AI, which this device cannot run or has not set up.';
+    invalidate();showRules();inventoryView();
+  }
   for(const [selector,key] of [['#group-by','groupBy'],['#naming','naming'],['#naming-template','template'],['#exclusion-patterns','patterns']]) listen(selector,'input',()=>{
     controls[key]=key==='patterns'?$(selector).value.split(',').map(s=>s.trim()).filter(Boolean):$(selector).value;
     invalidate();showRules();status('Settings changed. Generate a new proposal.');
@@ -76,8 +107,8 @@ export function mountOrganizer(root,{settingsRoot}={}) {
       const text=await file.text();if(closed||epoch!==guideEpoch)return;readme=text;parseGuide(readme,{source:'readme'});guidePending=false;invalidate();showRules();status('Guide loaded. Supported instructions are shown below.');
     } catch(error){if(epoch===guideEpoch){readme='';guidePending=false;guideError=error.message;invalidate();showRules();status(error.message,true);}}
   });
-  listen('#use-automatic','click',()=>{automatic=true;controls={};$('#group-by').value='type';$('#naming').value='normalize';$('#naming-template').value='{stem}';$('#exclusion-patterns').value='';invalidate();showRules();status('Automatic settings selected. Guide instructions are ignored; manual exclusions remain.');});
-  listen('#generate-proposal','click',async()=>{
+  listen('#use-automatic','click',()=>{automatic=true;controls={};$('#group-by').value='type';if(organizeBy()!=='content')root.querySelector('input[name="organize-by"][value="type"]').checked=true;$('#naming').value='normalize';$('#naming-template').value='{stem}';$('#exclusion-patterns').value='';invalidate();showRules();status('Automatic settings selected. Guide instructions are ignored; manual exclusions remain.');});
+  async function organize() {
     if(job)return;
     permit=null;
     try {if(!inventory)throw new Error('Choose files first.');const resolved=settings();if(resolved.errors.length)throw new Error(resolved.errors.join(' '));
@@ -90,8 +121,11 @@ export function mountOrganizer(root,{settingsRoot}={}) {
        const result=await aiControls.analyze({inventory,rules:resolved.rules,exclusions:{excludedIds:[...excluded]},guide,revision:ticket.revision});if(closed)return;session.acceptAnalysis(ticket,result);
       }else session.generate();
       proposalView();status('Review every proposed path. No original files have changed.');
-    }catch(error){session.reset();$('#proposal-area').hidden=true;buttons();status(error.message,true);}
-  });
+    }catch(error){session.reset();$('#proposal-area').hidden=true;$('#proposal-empty').hidden=false;buttons();status(error.message,true);}
+  }
+  listen('#generate-proposal','click',()=>void organize());
+  // Redo runs the same settings again; with Local AI the result can differ.
+  listen('#redo-proposal','click',()=>void organize());
   listen('#approve-proposal','click',()=>{try{permit=session.approve();status('Proposal approved. Export organized copies when ready.');}catch(error){permit=null;status(error.message,true);}buttons();});
   async function runExport(mode) {
     if(job||!permit)return;job=new AbortController();buttons();
@@ -109,7 +143,7 @@ export function mountOrganizer(root,{settingsRoot}={}) {
   listen('#reset-organizer','click',()=>{inventory=null;excluded.clear();invalidate();inventoryView();releaseDownloadResources('organizer');$('#organizer-files').value='';$('#organizer-folder').value='';status('File selection cleared.');});
   $('#export-folder').hidden=typeof window.showDirectoryPicker!=='function';
   $('#folder-support').textContent=typeof window.showDirectoryPicker==='function'?'Save copies in a new subfolder on supported Windows browsers, or download a ZIP.':'This browser uses ZIP export. Direct folder saving is unavailable.';
-  aiControls=mountAiControls(root,{settingsRoot,onModeChange:()=>{invalidate();showRules();inventoryView();$('#generate-proposal').textContent=aiControls.getMode()==='local'?'Analyze and propose':'Generate proposal';$('#analysis-badge').textContent=aiControls.getMode()==='local'?'Local AI':'Basic organization';},onBusy:controller=>{job=controller;buttons();},onStatus:status});
-  showRules();buttons();
+  aiControls=mountAiControls(root,{settingsRoot,onModeChange:modeChanged,onBusy:controller=>{job=controller;buttons();},onStatus:status});
+  modeChanged();buttons();
   return ()=>{closed=true;guideEpoch++;job?.abort();aiControls.dispose();session.reset();releaseDownloadResources('organizer');removers.forEach(remove=>remove());};
 }
