@@ -1,6 +1,6 @@
 node_modules/
-.vercel/
-.superpowers/
 work/
-outputs/
-*.log
+.superpowers/
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+desktop/dist/

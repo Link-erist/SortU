@@ -1,0 +1,61 @@
+import {createLocalRuntime} from './runtime.js';
+import {createAiOrganizer} from './organize.js';
+import {checkAiCapabilities} from './capabilities.js';
+import {acquireExportLock} from '../transfer/resources.js';
+import {wildcardMatch} from '../organizer/inventory.js';
+import {filesFromDirectory,filesFromInput,saveModelFolder} from './model-folder.js';
+export function mountAiControls(root,{onModeChange,onBusy,onStatus}={}) {
+ const $=selector=>root.querySelector(selector),removers=[];let active=null,disposed=false;
+ const status=(message,error=false)=>{if(disposed)return;$('#ai-status').textContent=message;$('#ai-status').dataset.state=error?'error':'ready';};
+ const progress=p=>{const message=p.bytes!==undefined?`${p.stage}: ${(p.bytes/1000000).toFixed(1)} MB / ${(p.total/1000000).toFixed(1)} MB`:p.path?`${p.stage}: ${p.path}`:p.summary||p.stage;status(message);onStatus?.(message);};
+ const listen=(selector,event,fn)=>{const el=$(selector);el.addEventListener(event,fn);removers.push(()=>el.removeEventListener(event,fn));};
+ async function prepare(files) {
+  if(active)return;active=new AbortController();onBusy?.(active);let release,runtime;
+  try {progress({stage:'Waiting for preparation resources'});release=await acquireExportLock('organizer-ai',active.signal);// Ask the browser to keep the large model cache; without this a plain tab's storage can be evicted under disk pressure.
+   const persisted=await Promise.resolve(navigator.storage?.persist?.()).catch(()=>false);
+   runtime=createLocalRuntime({signal:active.signal,onProgress:progress});const result=await runtime.prepare(files?{files}:{});status(`${files?'Loaded':'Prepared'} ${result.modelId}${files?' from the folder':''}. Offline readiness will be checked when analyzing files.${persisted?'':' This browser may remove the prepared model when storage is low; installing the app makes that less likely.'}`);}
+  catch(error){status(error.message,true);onStatus?.(error.message,true);}
+  finally{try{await runtime?.unload();}catch{}runtime?.dispose();release?.();active=null;onBusy?.(null);}
+ }
+ async function saveFolder() {
+  if(active)return;if(!window.showDirectoryPicker){status('This browser cannot write folders. Use Chrome or Edge to save the model.',true);return;}
+  let root;try{root=await window.showDirectoryPicker({id:'ai-organizer-model',mode:'readwrite'});}catch{return;}
+  active=new AbortController();onBusy?.(active);let release;
+  try{release=await acquireExportLock('organizer-ai',active.signal);const manifest=await(await fetch(new URL('./model.json',import.meta.url))).json();
+   const result=await saveModelFolder(root,{manifest,signal:active.signal,onProgress:p=>progress({stage:`${p.stage} (${p.completed+1}/${p.total})`,path:p.file})});
+   status(`Saved the model to "${root.name}" (${(result.bytes/1000000).toFixed(0)} MB). In another browser or profile, choose Load model from folder and pick this folder.`);}
+  catch(error){status(error.message,true);}finally{release?.();active=null;onBusy?.(null);}
+ }
+ async function loadFolder() {
+  if(active)return;
+  if(window.showDirectoryPicker){let root;try{root=await window.showDirectoryPicker({id:'ai-organizer-model'});}catch{return;}status('Reading the model folder');try{await prepare(await filesFromDirectory(root));}catch(error){status(error.message,true);}}
+  else $('#load-ai-folder-input').click();
+ }
+ listen('#ai-mode','change',()=>{onModeChange?.();for(const id of ['#prepare-ai','#load-ai-folder','#save-ai-folder'])$(id).hidden=$('#ai-mode').value!=='local';});
+ listen('#save-ai-folder','click',()=>void saveFolder());listen('#load-ai-folder','click',()=>void loadFolder());
+ listen('#load-ai-folder-input','change',event=>{const files=event.target.files;if(files?.length)void prepare(filesFromInput(files));event.target.value='';});
+ listen('#prepare-ai','click',()=>void prepare());listen('#cancel-ai','click',()=>active?.abort());
+ void checkAiCapabilities(navigator,{secureContext:window.isSecureContext}).then(caps=>{if(!active)status(caps.reason);});
+ function guideReview(guidance,inputs,signal) {
+  return new Promise(resolve=>{
+   const dialog=$('#guide-review'),list=$('#guide-review-files');list.replaceChildren();$('#guide-review-summary').textContent=`${guidance.summary} Review exclusions by filename before any file is analyzed. Content-based exclusion cannot be determined without reading files; select the files to skip yourself.`;
+   const ids=new Set(inputs.exclusions?.excludedIds||[]),patterns=[...inputs.rules.patterns,...guidance.exclusionPatterns];
+   for(const entry of inputs.inventory.entries){const label=document.createElement('label'),box=document.createElement('input'),text=document.createElement('span');box.type='checkbox';box.dataset.fileId=entry.id;
+    const excluded=ids.has(entry.id)||patterns.some(pattern=>wildcardMatch(pattern,entry.name)||wildcardMatch(pattern,entry.sourcePath));box.checked=!excluded;box.disabled=excluded;text.textContent=entry.sourcePath+(excluded?' (excluded)':'');label.append(box,text);list.append(label);}
+   let done=false;const finish=confirmed=>{if(done)return;done=true;dialog.close();signal.removeEventListener('abort',cancel);$('#confirm-guide').removeEventListener('click',confirm);$('#cancel-guide').removeEventListener('click',cancel);dialog.removeEventListener('cancel',cancel);resolve({confirmed,excludedIds:Array.from(list.querySelectorAll('input')).filter(box=>!box.checked).map(box=>box.dataset.fileId)});};
+   const confirm=()=>finish(true),cancel=event=>{event?.preventDefault?.();finish(false);};$('#confirm-guide').addEventListener('click',confirm);$('#cancel-guide').addEventListener('click',cancel);dialog.addEventListener('cancel',cancel);signal.addEventListener('abort',cancel,{once:true});dialog.showModal();if(signal.aborted)cancel();
+  });
+ }
+ return {
+  getMode:()=>$('#ai-mode').value,
+  isBusy:()=>!!active,
+  async analyze(inputs) {
+   if(active)throw new Error('Local AI is already running.');active=new AbortController();onBusy?.(active);const controller=active,organizer=createAiOrganizer();
+   try{const result=await organizer.analyze(inputs,{signal:controller.signal,onProgress:progress,onGuideReview:guidance=>guideReview(guidance,inputs,controller.signal)});status('AI proposal ready. Review it before approving.');return result;}
+   catch(error){status(error.message,true);throw error;}
+   finally{organizer.dispose();active=null;onBusy?.(null);}
+  },
+  cancel(){active?.abort();},
+  dispose(){disposed=true;active?.abort();removers.forEach(remove=>remove());}
+ };
+}

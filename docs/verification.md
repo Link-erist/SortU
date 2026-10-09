@@ -1,5 +1,69 @@
 # Verification: AppBuildersHackathon
 
+## Local AI Organizer, October 10, 2026
+
+Branch: `feat/local-ai-organizer`. Model: Qwen2.5-1.5B-Instruct-q4f16_1-MLC (WebLLM 0.2.85), about 885 MB, prepared only on explicit request. Detailed run history is in `docs/local-ai-progress.md`.
+
+- Real headless Windows Edge with an Intel WebGPU adapter: explicit preparation, then offline reload with the network blocked, cold model load from the prepared cache, and analysis of 12 synthetic fixtures (text, JSON, CSV, Markdown, UTF-8 Tagalog, embedded-text PDF, ambiguous note, scanned PDF) plus one excluded file. Analysis took 476-656 seconds for the 12 files.
+- Export: the downloaded ZIP's payloads and SHA-256 checksums matched every included source; the excluded file stayed excluded. The ambiguous note and scanned PDF visibly used metadata fallback with the reason shown.
+- **AI quality gate: unresolved.** Folder and filename are scored separately; the latest prompt scores 8/10 clear-topic fixtures against a 9/10 gate. Misses: software specification filed as Contracts, resume filed as Personal. All ten filenames passed. Grammar-enforced categories were tried and scored 2/10, so categories stay free text with a preferred list in the prompt and spelling normalization afterwards. Swapped-content controls passed (both opaque-name pairs changed subject) in the one run that reached them.
+- **Edge stability: unresolved.** Five of eight long runs ended with a headless Edge browser-process crash about 10-11 minutes in (crash dumps in the test profile; dump strings mention HangWatcher). Runs that finished sooner did not crash. Whether this affects a person running a long analysis in normal Edge, or Chrome, is untested.
+- Failure cases covered by unit tests: missing/corrupted cached model files, offline network refusal, blocked downloads, storage quota errors, PDF timeout and late parser cleanup, worker cancellation, cancellation while queued, GPU loss mid-generation with release and retry, stale replies, oversized guides, injection documents, excluded sources that throw on read, and copied prompt placeholders.
+- Organizer, Transfer and AI UI browser regressions pass (Rules fallback, offline reload, no page errors, no 390px overflow). Vendor asset hashes match the manifest after removing two stale `.mjs` entries. `npm test`: 82 passed, 0 failed.
+- Reproduce the real-model run with `node scripts/check-ai-organizer-browser.mjs` (set `PLAYWRIGHT_MODULE`; optional `AI_BROWSER_CHANNEL` and `AI_BROWSER_PROFILE`). It needs a prepared model in the chosen browser profile and takes about 10-11 minutes.
+
+- Save/load model folder: Edge saved the prepared model (885.5 MB) to a folder; a fresh Chrome profile loaded it with the network blocked (no external requests) and generated offline. Token parity is enforced on every generation by the worker.
+
+Remaining gates: AI quality (8/10 vs 9/10), long-run Edge stability, Android hardware, native folder dialogs (the save/load picker itself is not automated), physical LAN.
+
+## Organizer Core, October 9, 2026
+
+Current local branch: `feat/organizer-core`, based on `451c7b5`. The following checks supersede older milestone counts below. No organizer or transfer feature publication is implied by the original production URL.
+
+- Organizer is the initial workspace. Metadata inventory, manual/pattern exclusions, explicit directives, safe planned paths, editable proposals, opaque revision-bound approval, bounded stored ZIP output, and verified folder copies are implemented. This is rules-based organization, not local model inference.
+- Real headless Windows Edge: prepare online, enable browser offline emulation, reload, select seven mixed files, generate/edit/approve, apply a README guide, and download the actual worker-produced ZIP while still offline. Independent central-directory/CRC32 parsing and Node SHA-256 checks matched all six included payloads. The excluded file was absent. Unicode paths, an empty file, dotfile, compound extension, and equivalent normalized stems were covered.
+- Unsupported instructions block generation. Invalid edited targets cannot be approved. Edits invalidate exports. Explicit automatic-ignore mode bypasses unsupported/oversized guide text. Switching workspaces preserves selection, approval, and a live pairing session.
+- Real browser concurrency check: hold the shared export lock, start an organizer export, verify edits are disabled, end a Transfer session, confirm retained Organizer download credits remain, then cancel the queued export. The job cancels and editing resumes. Unit checks additionally cover owner-specific leases and aborted budget waits.
+- Folder exporter copied and independently reread/verified bytes using real browser private-storage directory handles. This checks the file API path, but does not test a user-selected native directory or Windows permission dialog.
+- Existing Transfer full UI regression passed after navigation/resource changes: matching pairing codes, consent, verified 1 MiB and empty-file downloads, identical independent source/output SHA-256, no page errors or mobile overflow. Final rerun reported 4.70 MB/s, which is same-PC confirmed-byte timing, not a physical LAN benchmark.
+- Desktop 1280px and mobile viewport 390px screenshots inspected. No mobile overflow or page errors. Mobile viewport testing is desktop Edge, not Android hardware.
+- Bundled fflate 0.8.3 stored-ZIP subset: 5,163 bytes. Organizer modules plus ZIP vendor: 44,038 raw bytes, 17,109 gzip bytes at this checkpoint, excluding modified shared shell and existing Transfer assets. Asset footprint does not establish RAM usage.
+- One independent whole-change review found an automatic-ignore bug caused by parsing oversized ignored text. The browser regression failed before the fix and passes afterward. Self-review found missing checksums for the valid manual filename `__proto__`; a failing regression now passes with a null-prototype checksum dictionary.
+- Shell version is v4. All organizer modules, ZIP/hash workers and vendor assets are cached locally. Old/new shell coherence and older-worker readiness remain tested.
+- Final automated suite: 55 passed, 0 failed. Syntax checks passed for 51 JavaScript files. `git diff --check` passed after removing extra trailing blank lines. Folder fault tests cover source read failures, permission failures, quota/write failures, corrupted saved bytes, collisions, partial completion, and cancellation.
+
+Reproduce with `npm test`, `node scripts/check-organizer-browser.mjs`, and `node scripts/check-transfer-browser.mjs`. Browser scripts require local Playwright and Edge; set `PLAYWRIGHT_MODULE` to the installed Playwright module if it is outside project dependencies. Evidence is generated in ignored `work/evidence/`. No model, runtime CDN, or cloud API is used by organization/export.
+
+Remaining physical gates: native Windows folder selection/permission revocation; actual Android picker/download behavior; 64 MiB boundary on physical mobile hardware and measured peak RAM; native PWA installation; real cross-device LAN and camera tests. These are unverified, not passed. Content-based local AI organization, chatbot, PDF content extraction, and timestamped transcription remain future implementation milestones.
+
+## Offline transfer feature, October 9, 2026
+
+### Final review and regression checks
+
+- Independent read-only review identified three issues: verified-but-unsaved resume ordering, destructive inactivity recovery, and aggregate retained download memory. Each now has a failing-before-fix regression that passes. Resume preserves the save gate and resumes the sender after export; inactivity pauses without deleting accepted storage; download URLs share a 64 MiB credit budget and are cleaned on session exit.
+- Pairing allows its full five-minute QR exchange window, then the sender has a 30-second local-connect timeout after applying the reply. Both cases are tested. The final shell is v3; the app compares its own HTML version with the active worker before claiming offline readiness.
+- Full UI check passed at 64 MiB plus an empty file, with actual saved-file hashes matching: `98dc891b284e4d84ac25b0c0a24fdbe39a7f0dbd643ad5e8aa06e02fc6258254`. No page errors or mobile-width overflow.
+- The 64 MiB check displayed approximately 0.75 MB/s for confirmed bytes, including UI preparation time. This is same-PC Edge with HTTP blocked, not a physical LAN speed claim or a validated 5 to 20 MB/s target. Browser storage profiling showed 8 MiB writes taking approximately 213 ms in memory and 416 ms in private storage; no speculative storage batching was introduced.
+- Final added transfer scripts/libraries: 197,724 raw bytes, 71,663 gzip bytes, excluding existing shell and license metadata. This is payload footprint, not measured browser RAM.
+- Final `npm test`: 36 passed, 0 failed, including bounded sender window, negotiated chunk size, failed-write acknowledgment, pairing deadlines, and old-worker readiness. JavaScript syntax checks and `git diff --check` pass.
+
+The checkpoint below preserves pre-review evidence; final fresh test results are recorded in the execution ledger.
+
+Feature branch: `feat/offline-webrtc-transfer`. These results concern local feature code; they do not mean production has been updated.
+
+- `npm test`: 27 passed, 0 failed at this checkpoint. Missing modules were observed failing before implementation; cancellation-reuse and capability checks failed before their fixes.
+- Real headless Edge pages paired with `iceServers: []`, showed matching verification codes, and exchanged data.
+- Full UI check: prepared both pages, reloaded with browser offline emulation, then blocked HTTP requests while keeping LAN sockets available. Browser offline emulation also inhibits ICE, so it was not left enabled for pairing. This distinction is recorded rather than equating it with a physical WAN disconnect.
+- Receiver approved and verified a 1 MiB file and a zero-byte file. Actual browser downloads were independently checked. SHA-256 for the 1 MiB source and saved output: `631b84027d6b9e52b539c4e8373622d23032dfadc64d60af87339c9037e4f769`.
+- No page errors. A 390-pixel-wide viewport had no horizontal overflow. This is desktop Edge at a mobile width, not Android verification.
+- Transfer scripts and bundled libraries: 194,569 raw bytes and 70,538 gzip bytes at this checkpoint, excluding existing shell and license metadata. Rerun `node scripts/measure-transfer-assets.mjs` after changes.
+- Same-page prefix-verified resume and cancellation followed by another transfer pass deterministic engine tests. Corrupted digest and failed writes do not publish/acknowledge completion.
+- Browser export regression: deleting an OPFS backing entry immediately canceled its download. The bounded download fallback now materializes independent bytes before deleting staging; the same full browser check passed afterward.
+
+Remaining gates: physical Windows/Android with WAN disconnected; real camera scanning of multi-frame QRs; 64 MiB mobile export and memory measurement; large-file streaming destination; actual Wi-Fi throughput; mobile background interruption; firewall/client isolation; macOS/iOS; native PWA installation. No verified cross-device speed or universal compatibility is claimed.
+
+The following sections preserve the earlier PWA-shell verification history.
+
 Checked on October 9, 2026, in the AI Organizer checkout.
 
 ## Passed

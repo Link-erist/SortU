@@ -61,7 +61,7 @@ test('offline navigation returns the installed page', async () => {
 
 test('online navigation returns fresh content, then caches it for offline reload', async () => {
   let offline = false;
-  const page = '<meta name="app-shell-version" content="v1">fresh page';
+  const page = '<meta name="app-shell-version" content="v6">fresh page';
   const sw = worker(async () => {
     if (offline) throw new Error('offline');
     return new Response(page);
@@ -77,7 +77,7 @@ test('an active worker keeps the old shell coherent while a new release waits', 
   let offline = false;
   const sw = worker(async () => {
     if (offline) throw new Error('offline');
-    return new Response('<meta name="app-shell-version" content="v2">new markup needing v2 assets');
+    return new Response('<meta name="app-shell-version" content="v7">new markup needing v7 assets');
   });
   await sw.lifecycle('install');
   assert.equal(await (await sw.request('/')).text(), 'cached /');
@@ -89,7 +89,7 @@ test('an active worker keeps the old shell coherent while a new release waits', 
 test('cached app assets remain available offline', async () => {
   const sw = worker(async () => { throw new Error('offline'); });
   await sw.lifecycle('install');
-  for (const path of ['/styles.css', '/app.js', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png', '/icons/mark.svg']) {
+  for (const path of ['/styles.css', '/app.js', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png', '/icons/mark.svg', '/transfer-entry.js', '/transfer/pairing.js', '/transfer/qr.js', '/transfer/ui.js', '/transfer/resources.js', '/transfer/protocol.js', '/transfer/engine.js', '/transfer/storage.js', '/transfer/hash.js', '/transfer/hash-worker.js', '/vendor/qrcodegen.js', '/vendor/jsqr.js', '/vendor/sha256.js']) {
     assert.equal(await (await sw.request(path, 'cors')).text(), `cached ${path}`);
   }
 });
@@ -111,7 +111,7 @@ test('worker leaves cross-origin requests and writes to the browser', async () =
   assert.equal(await sw.request('/', 'cors', 'POST'), undefined);
 });
 
-function app({ standalone = false, registrationFails = false } = {}) {
+function app({ standalone = false, registrationFails = false, workerVersion = 'v6' } = {}) {
   const handlers = new Map();
   const button = { hidden: true, disabled: false, addEventListener: (type, fn) => handlers.set(`button:${type}`, fn) };
   const status = { textContent: 'Getting ready', dataset: {} };
@@ -125,10 +125,16 @@ function app({ standalone = false, registrationFails = false } = {}) {
     navigator: {
       serviceWorker: {
         register: async () => { if (registrationFails) throw new Error('unavailable'); },
-        ready: Promise.resolve({ active: true })
+        ready: Promise.resolve({ active: { postMessage(_message, ports) { ports[0].postMessage({version: workerVersion}); } } })
       }
     },
-    document: { getElementById: (id) => elements[id] },
+    document: { getElementById: (id) => elements[id], querySelector: () => ({content:'v6'}) },
+    MessageChannel: class {
+      constructor() {
+        this.port1 = {onmessage: null, close() {}};
+        this.port2 = {postMessage: data => queueMicrotask(() => this.port1.onmessage?.({data})), close() {}};
+      }
+    }, setTimeout, clearTimeout,
     console: { warn() {} }
   };
   vm.runInNewContext(source('public/app.js'), context);
@@ -174,4 +180,9 @@ test('failed worker registration does not claim offline availability', async () 
   const ui = app({ registrationFails: true });
   await ui.flush();
   assert.equal(ui.status.textContent, 'Offline mode unavailable');
+});
+
+test('an older active worker does not claim the new transfer assets are ready offline',async()=>{
+  const ui=app({workerVersion:'v1'});await ui.flush();
+  assert.equal(ui.status.dataset.state,'pending');assert.match(ui.status.textContent,/Close all app windows/);
 });

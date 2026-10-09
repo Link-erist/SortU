@@ -40,7 +40,19 @@ async function prepareOfflineAccess() {
   }
   try {
     await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
-    await navigator.serviceWorker.ready;
+    const registration = await navigator.serviceWorker.ready;
+    const version = await new Promise((resolve, reject) => {
+      const channel = new MessageChannel();
+      const timer = setTimeout(() => {channel.port1.close();channel.port2.close();reject(new Error('Offline worker version unavailable.'));}, 3000);
+      channel.port1.onmessage = event => {clearTimeout(timer);channel.port1.close();channel.port2.close();resolve(event.data.version);};
+      registration.active.postMessage({type: 'APP_VERSION'}, [channel.port2]);
+    });
+    const expectedVersion = document.querySelector('meta[name="app-shell-version"]').content;
+    if (version !== expectedVersion) {
+      appStatus.textContent = 'Update prepared. Close all app windows and reopen.';
+      appStatus.dataset.state = 'pending';
+      return;
+    }
     appStatus.textContent = 'Available offline';
     appStatus.dataset.state = 'ready';
   } catch (error) {
