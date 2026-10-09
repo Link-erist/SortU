@@ -16,8 +16,9 @@ try {
  assert.ok(page,'App page not found.');const external=[],errors=[];
  page.on('request',request=>{const url=new URL(request.url());if(!['tauri.localhost','model.localhost'].includes(url.hostname))external.push(request.url());});page.on('pageerror',error=>errors.push(error.message));
  const started=Date.now();
- await page.waitForFunction(()=>{const status=document.getElementById('ai-status');return /installed from the bundled model/.test(status?.textContent)||status?.dataset.state==='error';},{},{timeout:900000});
- evidence.installStatus=await page.locator('#ai-status').textContent();evidence.installMilliseconds=Date.now()-started;assert.match(evidence.installStatus,/installed from the bundled model/);
+ // First launch installs the bundled model and reloads into the ready state; poll so the reload does not break the wait.
+ let state;for(const deadline=Date.now()+900000;Date.now()<deadline;await new Promise(resolve=>setTimeout(resolve,1000))){state=await page.evaluate(()=>({ai:document.getElementById('organizer-root')?.dataset.aiState,status:document.getElementById('ai-status')?.textContent,error:document.getElementById('ai-status')?.dataset.state==='error'})).catch(()=>null);if(state?.ai==='ready'||state?.error)break;}
+ evidence.installState=state;evidence.installMilliseconds=Date.now()-started;assert.equal(state?.ai,'ready',JSON.stringify(state));
  evidence.generation=await page.evaluate(async()=>{const {createLocalRuntime}=await import('/ai/runtime.js');const runtime=createLocalRuntime();try{await runtime.verifyOffline();
   return JSON.parse((await runtime.generate({kind:'file',entry:{id:'f1',name:'f1.txt'},guide:'',text:'Invoice INV-2026-013 from Acme Supplies for office paper and pens. Total PHP 1500, due October 30 2026.',rules:{},revision:'portable'})).raw);}finally{runtime.dispose();}});
  assert.match(evidence.generation.category,/invoice|financ|bill/i);
