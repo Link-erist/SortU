@@ -811,10 +811,24 @@
     "inflate.js": {
       "bytes": 3775,
       "sha256": "1d6200eff8bd22fbf273b714b36116bc01e00ca6d7f1292119e20de01d5dd778"
+    },
+    "transformers.js": {
+      "bytes": 544923,
+      "sha256": "a182e5aabc71c3c7b507652c15209fd3c483b815a33d6714b841d0714ab6e241"
+    },
+    "ort/ort-wasm-simd-threaded.asyncify.mjs": {
+      "bytes": 53057,
+      "sha256": "0966b6105cd936744498aa60df7a22cbd47af3374dbc64a9ab561c08a71e3611"
+    },
+    "TRANSCRIBE-LICENSES.txt": {
+      "bytes": 12638,
+      "sha256": "de74c601aad8e7765b9dca0692d929a25e2f2c5ac86ab9172a9244e63a34baf5"
     }
   },
   "fflate": "0.8.3",
   "webllm": "0.2.85",
   "tokenizers": "0.2.0",
-  "pdfjs": "6.4.299"
+  "pdfjs": "6.4.299",
+  "transformers": "4.3.0",
+  "onnxruntimeWeb": "1.31.0-dev.20260914-8d85527a0"
 }

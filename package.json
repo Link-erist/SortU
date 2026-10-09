@@ -13,6 +13,7 @@
   },
   "devDependencies": {
     "@huggingface/tokenizers": "0.2.0",
+    "@huggingface/transformers": "4.3.0",
     "@mlc-ai/web-llm": "0.2.85",
     "@noble/hashes": "2.0.1",
     "esbuild": "0.25.12",

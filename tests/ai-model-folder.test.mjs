@@ -39,3 +39,11 @@ test('the model counts as prepared only when every pinned file is stored',async(
  assert.equal(await isModelPrepared(manifest,async()=>({match:async url=>url.endsWith('.wasm')?undefined:new Response('abc')})),false);
  assert.equal(await isModelPrepared(manifest,async()=>{throw new Error('storage blocked');}),false);
 });
+test('cache scopes come from the manifest; the organizer model keeps its existing scopes',async()=>{
+ const {modelFolderEntries}=await import('../public/ai/model-folder.js');const {createModelTransport}=await import('../public/ai/transport.js');
+ const organizer={...manifest,artifacts:[...manifest.artifacts,{path:'mlc-chat-config.json',bytes:3}]};
+ assert.deepEqual(modelFolderEntries(organizer).map(entry=>entry.scope),['webllm/model','webllm/model','webllm/config','webllm/wasm']);
+ const whisper={...manifest,cache:{model:'transcribe/model',library:'transcribe/engine'}};
+ assert.deepEqual(modelFolderEntries(whisper).map(entry=>entry.scope),['transcribe/model','transcribe/model','transcribe/engine']);
+ assert.deepEqual([...createModelTransport({manifest:whisper}).specs.values()].map(spec=>spec.scope),['transcribe/model','transcribe/model','transcribe/engine']);
+});
