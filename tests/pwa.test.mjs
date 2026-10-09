@@ -61,7 +61,7 @@ test('offline navigation returns the installed page', async () => {
 
 test('online navigation returns fresh content, then caches it for offline reload', async () => {
   let offline = false;
-  const page = '<meta name="app-shell-version" content="v3">fresh page';
+  const page = '<meta name="app-shell-version" content="v4">fresh page';
   const sw = worker(async () => {
     if (offline) throw new Error('offline');
     return new Response(page);
@@ -77,7 +77,7 @@ test('an active worker keeps the old shell coherent while a new release waits', 
   let offline = false;
   const sw = worker(async () => {
     if (offline) throw new Error('offline');
-    return new Response('<meta name="app-shell-version" content="v4">new markup needing v4 assets');
+    return new Response('<meta name="app-shell-version" content="v5">new markup needing v5 assets');
   });
   await sw.lifecycle('install');
   assert.equal(await (await sw.request('/')).text(), 'cached /');
@@ -111,7 +111,7 @@ test('worker leaves cross-origin requests and writes to the browser', async () =
   assert.equal(await sw.request('/', 'cors', 'POST'), undefined);
 });
 
-function app({ standalone = false, registrationFails = false, workerVersion = 'v3' } = {}) {
+function app({ standalone = false, registrationFails = false, workerVersion = 'v4' } = {}) {
   const handlers = new Map();
   const button = { hidden: true, disabled: false, addEventListener: (type, fn) => handlers.set(`button:${type}`, fn) };
   const status = { textContent: 'Getting ready', dataset: {} };
@@ -128,7 +128,7 @@ function app({ standalone = false, registrationFails = false, workerVersion = 'v
         ready: Promise.resolve({ active: { postMessage(_message, ports) { ports[0].postMessage({version: workerVersion}); } } })
       }
     },
-    document: { getElementById: (id) => elements[id], querySelector: () => ({content:'v3'}) },
+    document: { getElementById: (id) => elements[id], querySelector: () => ({content:'v4'}) },
     MessageChannel: class {
       constructor() {
         this.port1 = {onmessage: null, close() {}};

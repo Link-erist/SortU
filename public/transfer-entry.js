@@ -1,3 +1,3 @@
-import {mountTransfer} from './transfer/ui.js';
-const root=document.getElementById('transfer-root');
-if(root){const cleanup=mountTransfer(root);window.addEventListener('pagehide',cleanup,{once:true});}
+import {mountWorkspaces} from './workspaces.js';
+const cleanup=mountWorkspaces({organizerRoot:document.getElementById('organizer-root'),transferRoot:document.getElementById('transfer-root'),organizeButton:document.getElementById('tab-organize'),transferButton:document.getElementById('tab-transfer')});
+window.addEventListener('pagehide',cleanup,{once:true});

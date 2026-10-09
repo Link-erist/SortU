@@ -1,5 +1,25 @@
 # Verification: AppBuildersHackathon
 
+## Organizer Core, October 9, 2026
+
+Current local branch: `feat/organizer-core`, based on `451c7b5`. The following checks supersede older milestone counts below. No organizer or transfer feature publication is implied by the original production URL.
+
+- Organizer is the initial workspace. Metadata inventory, manual/pattern exclusions, explicit directives, safe planned paths, editable proposals, opaque revision-bound approval, bounded stored ZIP output, and verified folder copies are implemented. This is rules-based organization, not local model inference.
+- Real headless Windows Edge: prepare online, enable browser offline emulation, reload, select seven mixed files, generate/edit/approve, apply a README guide, and download the actual worker-produced ZIP while still offline. Independent central-directory/CRC32 parsing and Node SHA-256 checks matched all six included payloads. The excluded file was absent. Unicode paths, an empty file, dotfile, compound extension, and equivalent normalized stems were covered.
+- Unsupported instructions block generation. Invalid edited targets cannot be approved. Edits invalidate exports. Explicit automatic-ignore mode bypasses unsupported/oversized guide text. Switching workspaces preserves selection, approval, and a live pairing session.
+- Real browser concurrency check: hold the shared export lock, start an organizer export, verify edits are disabled, end a Transfer session, confirm retained Organizer download credits remain, then cancel the queued export. The job cancels and editing resumes. Unit checks additionally cover owner-specific leases and aborted budget waits.
+- Folder exporter copied and independently reread/verified bytes using real browser private-storage directory handles. This checks the file API path, but does not test a user-selected native directory or Windows permission dialog.
+- Existing Transfer full UI regression passed after navigation/resource changes: matching pairing codes, consent, verified 1 MiB and empty-file downloads, identical independent source/output SHA-256, no page errors or mobile overflow. Final rerun reported 4.70 MB/s, which is same-PC confirmed-byte timing, not a physical LAN benchmark.
+- Desktop 1280px and mobile viewport 390px screenshots inspected. No mobile overflow or page errors. Mobile viewport testing is desktop Edge, not Android hardware.
+- Bundled fflate 0.8.3 stored-ZIP subset: 5,163 bytes. Organizer modules plus ZIP vendor: 44,038 raw bytes, 17,109 gzip bytes at this checkpoint, excluding modified shared shell and existing Transfer assets. Asset footprint does not establish RAM usage.
+- One independent whole-change review found an automatic-ignore bug caused by parsing oversized ignored text. The browser regression failed before the fix and passes afterward. Self-review found missing checksums for the valid manual filename `__proto__`; a failing regression now passes with a null-prototype checksum dictionary.
+- Shell version is v4. All organizer modules, ZIP/hash workers and vendor assets are cached locally. Old/new shell coherence and older-worker readiness remain tested.
+- Final automated suite: 55 passed, 0 failed. Syntax checks passed for 51 JavaScript files. `git diff --check` passed after removing extra trailing blank lines. Folder fault tests cover source read failures, permission failures, quota/write failures, corrupted saved bytes, collisions, partial completion, and cancellation.
+
+Reproduce with `npm test`, `node scripts/check-organizer-browser.mjs`, and `node scripts/check-transfer-browser.mjs`. Browser scripts require local Playwright and Edge; set `PLAYWRIGHT_MODULE` to the installed Playwright module if it is outside project dependencies. Evidence is generated in ignored `work/evidence/`. No model, runtime CDN, or cloud API is used by organization/export.
+
+Remaining physical gates: native Windows folder selection/permission revocation; actual Android picker/download behavior; 64 MiB boundary on physical mobile hardware and measured peak RAM; native PWA installation; real cross-device LAN and camera tests. These are unverified, not passed. Content-based local AI organization, chatbot, PDF content extraction, and timestamped transcription remain future implementation milestones.
+
 ## Offline transfer feature, October 9, 2026
 
 ### Final review and regression checks

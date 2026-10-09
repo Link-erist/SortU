@@ -64,7 +64,7 @@ export function mountTransfer(root,{pairingFactory=createPairing,engineFactory=c
   });
   action('#reject-files',()=>engine.reject());action('#cancel-transfer',()=>engine.cancel());
   action('#re-pair',()=>chooseRole(role));action('#resume-transfer',()=>engine.resume());
-  action('#end-session',async()=>{epoch++;session?.close();await engine?.close();releaseDownloadResources();engine=null;session=null;role=null;stopScan?.();stopScan=null;clearQr();$('#choose-send').disabled=!caps.transfer;$('#choose-receive').disabled=!caps.transfer;$('#pairing-workspace').hidden=true;$('#file-workspace').hidden=true;$('#verification-area').hidden=true;$('#transfer-progress').hidden=true;$('#incoming-review').hidden=true;status('Session ended. Choose Send or Receive.');});
+  action('#end-session',async()=>{epoch++;session?.close();await engine?.close();releaseDownloadResources('transfer');engine=null;session=null;role=null;stopScan?.();stopScan=null;clearQr();$('#choose-send').disabled=!caps.transfer;$('#choose-receive').disabled=!caps.transfer;$('#pairing-workspace').hidden=true;$('#file-workspace').hidden=true;$('#verification-area').hidden=true;$('#transfer-progress').hidden=true;$('#incoming-review').hidden=true;status('Session ended. Choose Send or Receive.');});
   const lifecycle=()=>{stopScan?.();stopScan=null;if(engine&&!engine.ready)status('Connection interrupted. Keep both pages open and re-pair.',true);};document.addEventListener('visibilitychange',lifecycle);
-  return ()=>{epoch++;session?.close();void engine?.close();releaseDownloadResources();stopScan?.();clearQr();cleanupEvents.forEach(remove=>remove());document.removeEventListener('visibilitychange',lifecycle);};
+  return ()=>{epoch++;session?.close();void engine?.close();releaseDownloadResources('transfer');stopScan?.();clearQr();cleanupEvents.forEach(remove=>remove());document.removeEventListener('visibilitychange',lifecycle);};
 }

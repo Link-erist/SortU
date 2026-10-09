@@ -1,6 +1,6 @@
 import {LIMITS} from './protocol.js';
 import {createHasher,hashPrefix} from './hash.js';
-import {downloadBudget} from './resources.js';
+import {downloadBudget,acquireExportLock} from './resources.js';
 
 export async function prepareSink(entry,{mode='auto',destination,adapters={}}={}) {
   const usePrivate=mode!=='memory'&&mode!=='custom'&&!!globalThis.navigator?.storage?.getDirectory;
@@ -22,16 +22,16 @@ export async function prepareSink(entry,{mode='auto',destination,adapters={}}={}
     async hashPrefix(length){ensure();if(length!==offset)throw new Error('Invalid stored prefix.');if(handle&&writer){await writer.close();writer=null;const blob=await handle.getFile();const result=await hashPrefix(blob,length);writer=await handle.createWritable({keepExistingData:true});return result;}return hashPrefix(await getBlob(),length);},
     async finish(expectedDigest){ensure();if(verified)return {state:'verified',size:offset};if(offset!==entry.size)throw new Error('File incomplete.');if(await hash.digest()!==expectedDigest){await sink.abort();throw new Error('File integrity check failed.');}if(writer){await writer.close();writer=null;}verified=true;hash.dispose();return {state:'verified',size:offset};},
     getBlob,
-    async export(){ensure();if(!verified)throw new Error('Verify the file before export.');if(exported)return exported;const blob=await getBlob();
+    async export(){ensure();if(!verified)throw new Error('Verify the file before export.');if(exported)return exported;const release=await acquireExportLock('transfer',controller.signal);try{ensure();const blob=await getBlob();
       if(destination){const output=await destination.createWritable();try{for(let position=0;position<blob.size;position+=262144){ensure();await output.write(await blob.slice(position,position+262144).arrayBuffer());}ensure();await output.close();exported={state:'saved',name:entry.name};}catch(error){await output.abort().catch(()=>{});throw error;}}
       else {if(blob.size>LIMITS.blob)throw new Error('Download export exceeds the 64 MiB limit.');if(!globalThis.document)throw new Error('Download requires a browser.');
         // OPFS File objects depend on their backing entry. Materialize only the
         // bounded download fallback before deleting staging, so it stays valid.
-        const lease=await downloadBudget.reserve(blob.size,controller.signal);
+        const lease=await downloadBudget.reserve(blob.size,controller.signal,'transfer');
         try{ensure();const downloadBlob=handle?new Blob([await blob.arrayBuffer()],{type:'application/octet-stream'}):blob;ensure();
           const url=URL.createObjectURL(downloadBlob);lease.url=url;const link=document.createElement('a');link.href=url;link.download=entry.name;link.rel='noopener';document.body.append(link);link.click();link.remove();lease.timer=setTimeout(()=>lease.release(),60000);exported={state:'export-requested',name:entry.name};
         }catch(error){lease.release();throw error;}}
-      await remove();chunks=[];finalBlob=null;return exported;
+      await remove();chunks=[];finalBlob=null;return exported;}finally{release();}
     },
     async abort(){if(closed)return;closed=true;controller.abort();hash.dispose();if(writer)await writer.abort().catch(()=>{});writer=null;chunks=[];finalBlob=null;await remove();}
   };

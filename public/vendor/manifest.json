@@ -19,6 +19,15 @@
     "LICENSES.txt": {
       "bytes": 13867,
       "sha256": "6029642f5d3723a283042158b05e038afdfc681246733fadfc02be6ec1de24f3"
+    },
+    "zip.js": {
+      "bytes": 5163,
+      "sha256": "f9363efd52e055f62c8343a6a023d35a237de5e9ab9504bff55bd3ac242d14b0"
+    },
+    "ZIP-LICENSE.txt": {
+      "bytes": 1105,
+      "sha256": "f1e94acdd5ce4522185fa4becbc12714558a75a9df5ae9372127854705b477eb"
     }
-  }
+  },
+  "fflate": "0.8.3"
 }

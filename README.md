@@ -1,6 +1,6 @@
 # AppBuildersHackathon
 
-A one-page Progressive Web App with private, browser-only LAN file transfer. Plain HTML, CSS, and JavaScript with small, locally bundled QR and hashing libraries. Deployment needs no build step or runtime CDN.
+A Progressive Web App centered on private file organization, with browser-only LAN file transfer as a secondary workspace. Plain HTML, CSS, and JavaScript with locally bundled ZIP, QR, and hashing libraries. Deployment needs no build step or runtime CDN.
 
 **Live app:** https://appbuildershackathon.vercel.app/
 
@@ -22,7 +22,7 @@ Open **http://127.0.0.1:4173**. Keep the terminal running. Stop it with Ctrl+C. 
 npm test
 ```
 
-The tests exercise PWA behavior, pairing validation, QR decoding, protocol validation, consent, integrity, cancellation, and same-page resume. Native installation and physical LAN compatibility still need device checks.
+The tests exercise organizer rules, safe proposals, approval invalidation, exclusions, bounded ZIP export, verified copies, workspace ownership, and PWA/transfer behavior. Native installation and physical LAN compatibility still need device checks.
 
 ## Deploy to Vercel with GitHub
 
@@ -44,7 +44,7 @@ Installation needs HTTPS or localhost. Double-clicking `index.html` opens a `fil
 
 ## Offline and updates
 
-Visit once online on EACH device and wait for **Available offline**. The worker precaches the complete transfer interface, workers, bundled libraries, page, styles, manifest, and icons. A subsequent offline reload returns the cached app. First visits need a connection. A cache may be removed by the browser, storage pressure, or clearing site data, so offline access is not permanent storage.
+Visit once online on EACH device and wait for **Available offline**. The worker precaches both workspaces, workers, bundled libraries, page, styles, manifest, and icons. A subsequent offline reload returns the cached app. First visits need a connection. A cache may be removed by the browser, storage pressure, or clearing site data, so offline access is not permanent storage.
 
 The page checks the network first; local app assets use a versioned cache. When changing cached files, **increment `APP_VERSION` in `public/sw.js` and the `app-shell-version` meta tag in `public/index.html` together**, for example to `v2`. Keep that meta tag's attribute order as written. While the next worker waits, the active worker keeps its previous page when the network delivers a different shell version, preventing new markup from mixing with old assets. A new worker normally waits until all old app tabs/windows close. Close them and reopen to activate the new version. Old caches belonging to this app are then removed. No forced reload is used.
 
@@ -52,7 +52,31 @@ To check offline behavior manually: visit online, wait for the offline-ready sta
 
 ## Current scope and browser limits
 
-This feature branch adds file transfer. It does not yet implement AI, organization, renaming, or transcription; those remain subsequent subsystems. Installing a PWA does not grant unrestricted file access or native background operation. File picking and saving vary across browsers. Browser-local storage can be cleared; browser installation does not make it a backup. The existing production URL is not updated until this feature is published.
+This feature branch implements rules-based organization and renaming of exported copies, plus file transfer. Local AI, content understanding, chatbot, PDF content analysis, and timestamped transcription remain subsequent subsystems. This rules-based milestone alone does not meet the hackathon's local AI inference requirement. Installing a PWA does not grant unrestricted file access or native background operation. File picking and saving vary across browsers. Browser-local storage can be cleared; browser installation does not make it a backup. The existing production URL is not updated until this feature is published.
+
+## Organize files privately
+
+1. Open **Organize**, then select 1 to 100 files or a folder. Only these selected files are accessible. Uncheck any files to exclude them. Inventory and proposals use names, extensions, and last-modified metadata without reading file contents.
+2. Use automatic defaults or choose grouping by type, modified year, or original folders. Preserve names, normalize them, or use `{stem}`, `{category}`, `{index}`, and `{date}` in a naming template. Extensions are retained. `{date}` uses the selected file's last-modified date in the device's time zone.
+3. Optionally provide supported directives in the instruction box (8 KiB UTF-8) or a `.txt`/`.md` README guide (32 KiB). For example:
+
+   ```text
+   Group by: type
+   Naming: project_{stem}_{index}
+   Exclude: *.tmp, private*
+   ```
+
+   Unsupported prose or conflicting guides block the proposal. **Use automatic settings and ignore guides** explicitly bypasses guide instructions and resets manual settings. Manually excluded files stay excluded. Manually changed controls override matching guide directives and are identified in the active rules summary. Exclusion patterns support `*` and `?`, at most 20 patterns of 256 characters each.
+4. Generate a proposal, review the original and proposed paths, edit if needed, and explicitly approve. Changes to selection, settings, instructions, or target paths invalidate approval. Unsafe Windows paths, collisions, and file/directory conflicts block approval. Automatic collisions receive deterministic keep-both suffixes.
+5. Download a ZIP, or on browsers exposing folder-writing support choose a parent folder. Folder export creates a new `Organized-<date>-<uuid>` subfolder, copies bytes, and independently rereads and verifies each saved file. Originals are not moved, rewritten, or deleted. A failure reports the partial output folder instead of deleting it. ZIP export reports **download requested** because the app cannot confirm browser saving finished.
+
+ZIP output is capped at **64 MiB including archive overhead and the organization report**. The conservative admission estimate can reject a selection slightly below that ceiling. Folder export streams files sequentially and has no app-wide byte cap, subject to browser permissions and disk capacity. Both export modes read in 32 KiB chunks. The report includes metadata, rules, excluded paths, and SHA-256 checksums, with a 512 KiB report cap. It does not include guide text or file contents.
+
+Organizer and Transfer retain their sessions when switching tabs. Export construction is serialized across both workspaces. Retained download buffers share a 64 MiB budget and release after up to 60 seconds; this is not a total browser RAM guarantee. Ending Transfer releases only Transfer downloads. Clearing Organizer releases only Organizer downloads. Wait for downloads before clearing or closing.
+
+Android uses the capabilities its browser actually provides. ZIP export and standard file selection are the portable routes; direct folder saving is offered only when supported. Mobile viewport tests do not prove physical Android support or acceptable memory use. Keep this app in the foreground during jobs.
+
+The organizer ZIP vendor is the stored-entry subset of fflate 0.8.3, bundled locally with its MIT license. Run `node scripts/vendor-organizer.mjs` after installing development dependencies to regenerate it. Runtime operations use no CDN or server API. Model inference is not part of this version.
 
 See [MDN installability guidance](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable) and [service worker guidance](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers).
 
@@ -72,7 +96,7 @@ Automated tests and browser results are recorded in `docs/verification.md`. Phys
 ## Transfer files without internet
 
 1. Prepare the current app release on both devices while online. Then connect both devices to the same local Wi-Fi with peer communication enabled. Internet access is not needed during pairing or transfer.
-2. Choose **Send files** on one device and **Receive files** on the other.
+2. Open **Transfer**. Choose **Send files** on one device and **Receive files** on the other.
 3. Receiver scans every sender QR frame. Sender then scans every receiver reply frame. Complete pairing JSON can be pasted/imported if camera access is unavailable. Pairing expires after five minutes.
 4. Compare the verification code and confirm it on BOTH devices.
 5. Sender selects files and can uncheck exclusions. Receiver reviews and accepts selected files. No file bytes are sent before approval.

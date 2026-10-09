@@ -1,11 +1,11 @@
 // Increment APP_VERSION and the matching index.html meta tag together for each release.
-const APP_VERSION = 'v3';
+const APP_VERSION = 'v4';
 const CACHE_PREFIX = 'appbuildershackathon-';
 const CACHE_NAME = `${CACHE_PREFIX}${APP_VERSION}`;
 const APP_ASSETS = [
   '/', '/index.html', '/styles.css', '/app.js', '/manifest.webmanifest',
   '/icons/mark.svg', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png',
-  '/transfer-entry.js', '/transfer/pairing.js', '/transfer/qr.js', '/transfer/protocol.js',
+  '/workspaces.js', '/transfer-entry.js', '/organizer/inventory.js', '/organizer/rules.js', '/organizer/paths.js', '/organizer/planner.js', '/organizer/proposal.js', '/organizer/export.js', '/organizer/archive.js', '/organizer/archive-core.js', '/organizer/archive-worker.js', '/organizer/ui.js', '/vendor/zip.js', '/vendor/ZIP-LICENSE.txt', '/transfer/pairing.js', '/transfer/qr.js', '/transfer/protocol.js',
   '/transfer/engine.js', '/transfer/storage.js', '/transfer/hash.js', '/transfer/hash-worker.js',
   '/transfer/ui.js', '/transfer/resources.js', '/vendor/qrcodegen.js', '/vendor/jsqr.js', '/vendor/sha256.js',
   '/vendor/LICENSES.txt', '/vendor/manifest.json'

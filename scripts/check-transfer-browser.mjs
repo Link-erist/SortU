@@ -9,11 +9,11 @@ try{
  // Browser offline emulation disables ICE networking too. Block HTTP only
  // after testing cached reload, preserving LAN sockets as a WAN outage does.
  await context.setOffline(false);await context.route('**/*',route=>route.abort());
- await a.getByRole('button',{name:'Send files'}).click();await b.getByRole('button',{name:'Receive files'}).click();
+ await a.locator('#tab-transfer').click();await b.locator('#tab-transfer').click();await a.getByRole('button',{name:'Send files'}).click();await b.getByRole('button',{name:'Receive files'}).click();
  await a.waitForFunction(()=>document.getElementById('pairing-output').value.startsWith('{'));
- const offer=await a.locator('#pairing-output').inputValue();await b.locator('summary').click();await b.locator('#pairing-input').fill(offer);await b.locator('#use-pairing-text').click();
+ const offer=await a.locator('#pairing-output').inputValue();await b.locator('#transfer-root summary').click();await b.locator('#pairing-input').fill(offer);await b.locator('#use-pairing-text').click();
  await b.waitForFunction(()=>document.getElementById('pairing-output').value.startsWith('{'));
- const answer=await b.locator('#pairing-output').inputValue();await a.locator('summary').click();await a.locator('#pairing-input').fill(answer);await a.locator('#use-pairing-text').click();
+ const answer=await b.locator('#pairing-output').inputValue();await a.locator('#transfer-root summary').click();await a.locator('#pairing-input').fill(answer);await a.locator('#use-pairing-text').click();
  await Promise.all([a.locator('#verification-code').waitFor({state:'visible'}),b.locator('#verification-code').waitFor({state:'visible'})]);
  const codes=await Promise.all([a.locator('#verification-code').textContent(),b.locator('#verification-code').textContent()]);if(codes[0]!==codes[1])throw new Error('Codes differ');
  await a.locator('#verify-pairing').click();await b.locator('#verify-pairing').click();await a.locator('#file-workspace').waitFor({state:'visible'});await b.locator('#file-workspace').waitFor({state:'visible'});
@@ -30,4 +30,3 @@ try{
  await a.setViewportSize({width:1280,height:900});await a.screenshot({path:'work/evidence/desktop.png',fullPage:true});await b.setViewportSize({width:390,height:844});await b.screenshot({path:'work/evidence/mobile.png',fullPage:true});evidence.mobileOverflow=await b.evaluate(()=>document.documentElement.scrollWidth>innerWidth);
  console.log(JSON.stringify(evidence,null,2));await writeFile('work/evidence/browser.json',JSON.stringify(evidence,null,2));if(errors.length)throw new Error('Browser errors');
 }catch(error){const pages=await Promise.all(context.pages().map(p=>p.evaluate(()=>({status:document.getElementById('transfer-status')?.textContent,speed:document.getElementById('speed-label')?.textContent,progress:Array.from(document.querySelectorAll('progress'),p=>({value:p.value,max:p.max})),code:document.getElementById('verification-code')?.textContent}))));await writeFile('work/evidence/failure.json',JSON.stringify({message:error.message,errors,pages}));console.error(error);process.exitCode=1;}finally{await browser.close();}
-
