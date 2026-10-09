@@ -125,8 +125,16 @@ export function parseCommand(text,context,proposal) {
   // Try each "to/into/in" split from the last one, so "everything in Misc into Atlas" splits before "into".
   const splits=[...m[1].matchAll(/\s+(?:in|into|to|under|inside|sa)\s+/gi)].reverse();let files,destination;
   for(const split of splits){const candidate=resolveFiles(context,proposal,m[1].slice(0,split.index));if(candidate){files=candidate;destination=m[1].slice(split.index+split[0].length);break;}}
-  if(files?.missing)return {reply:NOT_FOUND,actions:[]};if(!files?.aliases?.length||!strip(destination||''))return null;
-  const target=resolveFolder(context,destination)||strip(destination);return {reply:`Proposed: move ${files.label} to ${target}. Review it, then click Apply.`,actions:[{type:'move',files:files.aliases,from:'',to:target}]};
+  if(files?.missing)return {reply:NOT_FOUND,actions:[]};
+  if(files?.aliases?.length&&strip(destination||'')){const target=resolveFolder(context,destination)||strip(destination);return {reply:`Proposed: move ${files.label} to ${target}. Review it, then click Apply.`,actions:[{type:'move',files:files.aliases,from:'',to:target}]};}
+ }
+ // "Keep X with Y", "X should be grouped under Y": Y must be an existing folder, or files that share one folder.
+ const wish=t.replace(/^(?:i want|i'd like|i would like|please|can you)\s+/i,'');
+ if((m=wish.match(/^(?:keep|group|put|place|move)\s+(.+?)\s+(?:together with|along with|with|under|beside|next to)\s+(.+?)(?:\s+too|\s+as well)?$/i))||(m=wish.match(/^(.+?)\s+(?:should\s+|to\s+)?(?:be\s+)?(?:kept|grouped|placed|go|goes|stay|belongs?)\s+(?:together\s+)?(?:with|in|into|under|inside)\s+(.+?)(?:\s+too|\s+as well)?$/i))) {
+  const files=resolveFiles(context,proposal,m[1]);if(files?.missing)return {reply:NOT_FOUND,actions:[]};
+  let target=resolveFolder(context,m[2]);
+  if(!target){const others=resolveFiles(context,proposal,m[2]),folders=new Set((others?.aliases||[]).map(a=>folderOf(proposal.rows.find(row=>row.fileId===context.aliases.get(a)).targetPath)));if(folders.size===1)target=[...folders][0];}
+  if(files?.aliases?.length&&target)return {reply:`Proposed: move ${files.label} to ${target}. Review it, then click Apply.`,actions:[{type:'move',files:files.aliases,from:'',to:target}]};
  }
  if((m=t.match(/^(?:please\s+)?rename\s+(.+?)\s+(?:to|as|into)\s+(.+)$/i))) {
   const from=resolveFolder(context,m[1]);if(!from)return /\.[a-z0-9]{2,5}\b/i.test(m[1])?{reply:'I can only rename folders. To rename a file, edit its path under "Edit individual paths".',actions:[]}:{reply:NOT_FOUND,actions:[]};

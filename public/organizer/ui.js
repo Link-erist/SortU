@@ -7,14 +7,16 @@ import {mountAiControls} from '../ai/ui.js';
 import {MODEL_ID} from '../ai/organize.js';
 import {sha256} from '../vendor/sha256.js';
 import {folderTree,renderTree} from './tree.js';
+import {mountAssistant} from '../assistant/ui.js';
 
 export function mountOrganizer(root,{settingsRoot}={}) {
   // Model controls live on the Settings page; everything else is inside this page.
   const $=selector=>root.querySelector(selector)||settingsRoot?.querySelector(selector), session=createOrganizerSession(), removers=[];
-  let inventory=null, excluded=new Set(), controls={}, readme='', automatic=false, permit=null, job=null, closed=false, guideEpoch=0, guidePending=false, guideError='',aiControls;
+  let inventory=null, excluded=new Set(), controls={}, readme='', automatic=false, permit=null, job=null, closed=false, guideEpoch=0, guidePending=false, guideError='',aiControls,assistant,assistantBusy=false;
   const status=(message,error=false)=>{ $('#organizer-status').textContent=message;$('#organizer-status').dataset.state=error?'error':'ready';};
   const listen=(selector,event,handler)=>{const element=$(selector);element.addEventListener(event,handler);removers.push(()=>element.removeEventListener(event,handler));};
   function buttons() {
+    assistant?.sync();
     $('#approve-proposal').disabled=!!job||!session.proposal;
     $('#export-zip').disabled=!!job||!permit;$('#export-folder').disabled=!!job||!permit;
     $('#cancel-export').hidden=!job||!!aiControls?.isBusy();
@@ -109,7 +111,8 @@ export function mountOrganizer(root,{settingsRoot}={}) {
   });
   listen('#use-automatic','click',()=>{automatic=true;controls={};$('#group-by').value='type';if(organizeBy()!=='content')root.querySelector('input[name="organize-by"][value="type"]').checked=true;$('#naming').value='normalize';$('#naming-template').value='{stem}';$('#exclusion-patterns').value='';invalidate();showRules();status('Automatic settings selected. Guide instructions are ignored; manual exclusions remain.');});
   async function organize() {
-    if(job)return;
+    if(job||assistantBusy)return;
+    await assistant.releaseModel();
     permit=null;
     try {if(!inventory)throw new Error('Choose files first.');const resolved=settings();if(resolved.errors.length)throw new Error(resolved.errors.join(' '));
       session.setInputs({inventory,rules:resolved.rules,exclusions:{excludedIds:[...excluded]},guideResolved:true});
@@ -144,6 +147,17 @@ export function mountOrganizer(root,{settingsRoot}={}) {
   $('#export-folder').hidden=typeof window.showDirectoryPicker!=='function';
   $('#folder-support').textContent=typeof window.showDirectoryPicker==='function'?'Save copies in a new subfolder on supported Windows browsers, or download a ZIP.':'This browser uses ZIP export. Direct folder saving is unavailable.';
   aiControls=mountAiControls(root,{settingsRoot,onModeChange:modeChanged,onBusy:controller=>{job=controller;buttons();},onStatus:status});
+  // The Description box: sets the direction before a proposal, then proposes previewed changes.
+  assistant=mountAssistant(root,{session,aiReady:()=>root.dataset.aiState==='ready',isBusy:()=>!!job,
+    onBusy:busy=>{assistantBusy=busy;buttons();},
+    onApplied:()=>{permit=null;proposalView();status('Assistant changes applied. Review and approve again before saving.');},
+    onDirection:({text,organizeBy:choice})=>{
+      const ready=root.dataset.aiState==='ready';
+      if(choice==='content'&&!ready)return 'Organizing by content needs Local AI, which is not ready on this device. Choose File type or Date instead.';
+      if(choice){root.querySelector(`input[name="organize-by"][value="${choice}"]`).checked=true;applyOrganizeBy();}
+      if(aiControls.getMode()==='local'){const box=$('#organizer-instructions');box.value=[box.value.trim(),text].filter(Boolean).join('\n').slice(0,8192);box.dispatchEvent(new Event('input'));return 'Got it. Local AI will follow this when you click Organize. You can add more, or click Organize now.';}
+      return choice?`Set to organize by ${{type:'file type',year:'date',folders:'the original folders'}[choice]}. Click Organize when ready.`:'In basic organization I can switch between File type, Date and the original folders. Describing the result in words needs Content (Local AI).';
+    }});
   modeChanged();buttons();
-  return ()=>{closed=true;guideEpoch++;job?.abort();aiControls.dispose();session.reset();releaseDownloadResources('organizer');removers.forEach(remove=>remove());};
+  return ()=>{closed=true;guideEpoch++;job?.abort();assistant.dispose();aiControls.dispose();session.reset();releaseDownloadResources('organizer');removers.forEach(remove=>remove());};
 }

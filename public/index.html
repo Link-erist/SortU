@@ -39,8 +39,8 @@
         <section class="transfer-card"><h2>Organize by</h2>
           <div class="segmented" role="radiogroup" aria-label="Organize by"><label><input type="radio" name="organize-by" value="type" data-setting checked><span>File type</span></label><label><input type="radio" name="organize-by" value="year" data-setting><span>Date</span></label><label><input type="radio" name="organize-by" value="content" data-setting><span>Content</span></label></div>
           <p id="organize-by-help" class="help"></p>
-          <label for="organizer-instructions">Description <span class="help">(optional)</span></label><textarea id="organizer-instructions" data-setting rows="3" maxlength="8192" placeholder="Describe how you want these files organized"></textarea>
           <details><summary>More options</summary>
+            <label for="organizer-instructions">Instructions for Organize (the assistant fills this from your description)</label><textarea id="organizer-instructions" data-setting rows="3" maxlength="8192"></textarea>
             <label class="inline-choice"><input type="radio" name="organize-by" value="folders" data-setting> Keep the original folders</label>
             <select id="group-by" hidden aria-hidden="true" tabindex="-1"><option value="type">File type</option><option value="year">Modified year</option><option value="folders">Original folders</option></select>
             <div class="settings-grid"><label for="naming">File names<select id="naming" data-setting><option value="normalize">Clean up names</option><option value="preserve">Keep original names</option><option value="template">Use a template</option></select></label><label for="naming-template">Naming template<input id="naming-template" data-setting type="text" value="{stem}" maxlength="256"></label></div>
@@ -54,10 +54,15 @@ Exclude: *.tmp, private*</pre>
           </details>
           <p id="rules-summary" class="help" aria-live="polite"></p>
           <div class="button-row"><button id="generate-proposal" data-setting type="button">Organize</button><button id="redo-proposal" data-setting type="button" class="secondary" disabled>Redo</button><button id="cancel-ai" type="button" class="secondary" hidden>Cancel AI analysis</button></div></section>
+        <section class="transfer-card assistant-card" aria-labelledby="assistant-title"><div class="card-heading"><h2 id="assistant-title">Description</h2><button id="assistant-clear" type="button" class="secondary">Clear</button></div>
+          <p id="assistant-empty" class="help">Describe how you want the files organized, then click Organize. After a proposal appears, ask me to move files, rename or merge folders, or explain where a file went. I only help with organizing these files.</p>
+          <ol id="assistant-log" class="chat-log" aria-live="polite"></ol>
+          <label for="assistant-input" class="visually-hidden">Message the assistant</label><div class="chat-input"><textarea id="assistant-input" rows="2" maxlength="500" placeholder="e.g. Keep the invoices with the projects"></textarea><button id="assistant-send" type="button">Send</button></div>
+          <p class="help">History is saved in this browser and includes file and folder names. Clear removes it.</p></section>
       </div>
       <section class="transfer-card proposal-panel" aria-labelledby="proposal-title"><h2 id="proposal-title">Proposed changes</h2>
         <p id="proposal-empty" class="help">Proposed folders and names appear here after you click Organize. Nothing is changed until you save copies.</p>
-        <div id="proposal-area" hidden><p id="proposal-summary" class="help"></p><div id="proposal-tree" class="tree-view"></div>
+        <div id="proposal-area" hidden><p id="proposal-summary" class="help"></p><div id="assistant-preview" class="assistant-preview" hidden><h3>Assistant suggestion</h3><ul id="assistant-preview-summary"></ul><details><summary>Files that would move</summary><ul id="assistant-preview-list" class="preview-list"></ul></details><p id="assistant-preview-rejected" class="help"></p><div class="button-row"><button id="assistant-apply" type="button">Apply</button><button id="assistant-discard" type="button" class="secondary">Discard</button></div><p class="help">Nothing changes until you click Apply. Applying cancels approval.</p></div><div id="proposal-tree" class="tree-view"></div>
           <details><summary>Edit individual paths</summary><div id="proposal-list"></div></details>
           <div class="button-row"><button id="approve-proposal" type="button">Approve</button></div><p class="help">Editing a path or setting cancels approval. No original files are renamed or moved.</p></div>
         <div class="export-box"><h3>Save organized copies</h3><p id="folder-support" class="help"></p><div class="button-row"><button id="export-zip" type="button" disabled>Download ZIP</button><button id="export-folder" type="button" class="secondary" disabled>Save to new folder</button><button id="cancel-export" type="button" class="secondary" hidden>Cancel export</button></div><p class="help">ZIP exports are limited to 64 MiB. A report lists original and new paths, exclusions, rules and checksums. Wait for downloads to finish before clearing the selection.</p></div>

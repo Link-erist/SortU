@@ -91,3 +91,12 @@ test('clear commands are understood by rules against real names',async()=>{
  assert.equal(run('Put the money things together'),null);
  assert.deepEqual(settleModelResponse({reply:REFUSAL,actions:[{type:'move'}]}).actions,[]);
 });
+test('common phrasings move files next to an existing folder or file',async()=>{
+ const {parseCommand}=await import('../public/assistant/core.js');
+ const session=sample(),proposal=session.proposal,context=buildContext(proposal),targets=text=>{const result=parseCommand(text,context,proposal);return result&&previewActions(proposal,context,result.actions).changes.map(change=>change.to).sort();};
+ assert.deepEqual(targets('I want the invoices kept with the projects'),['Projects/inv-1.pdf','Projects/inv-2.pdf']);
+ assert.deepEqual(targets('The recipe should be grouped under Projects too'),['Projects/adobo.md']);
+ assert.deepEqual(targets('keep adobo with plan.txt'),['Projects/Atlas/adobo.md']);
+ assert.deepEqual(targets('put the adobo recipe with the invoices'),['Invoices/adobo.md']);
+ assert.equal(parseCommand('keep adobo with the spaceship',context,proposal),null);
+});

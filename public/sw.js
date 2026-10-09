@@ -24,6 +24,8 @@ const APP_ASSETS = [
   '/organizer/tree.js',
   '/assistant/core.js',
   '/assistant/ask.js',
+  '/assistant/ui.js',
+  '/assistant/history.js',
   '/vendor/inflate.js',
   '/ai/model.json',
   '/ai/organize.js',
