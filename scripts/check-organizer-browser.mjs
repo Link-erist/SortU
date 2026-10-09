@@ -11,7 +11,7 @@ const errors=[],evidence={};await mkdir('work/evidence/organizer-fixtures',{recu
 try {
   const page=await context.newPage();page.on('pageerror',error=>errors.push(error.message));
   await page.goto('http://127.0.0.1:4173/');await page.waitForFunction(()=>document.getElementById('app-status').textContent==='Available offline');
-  await context.setOffline(true);await page.reload();await page.locator('#organizer-root').waitFor({state:'visible'});evidence.offlineReload=true;
+  await context.setOffline(true);await page.reload();await page.locator('#tab-organize').click();await page.locator('#organizer-root').waitFor({state:'visible'});evidence.offlineReload=true;
   const fixtures={'Annual Report.txt':Buffer.from('important text\n'), 'annual_report.txt':Buffer.from('different bytes'), 'café.png':Buffer.from([0,255,2,10]),'.env':Buffer.from('demo=local'), 'backup.tar.gz':Buffer.from([31,139,9]),'empty.txt':Buffer.alloc(0),'private.tmp':Buffer.from('excluded')};
   for(const [name,bytes] of Object.entries(fixtures))await writeFile(`work/evidence/organizer-fixtures/${name}`,bytes);
   await page.locator('#organizer-files').setInputFiles(Object.keys(fixtures).map(name=>`work/evidence/organizer-fixtures/${name}`));

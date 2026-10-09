@@ -12,7 +12,7 @@ try {
  await page.goto('http://127.0.0.1:4173/');
  await page.evaluate(async()=>{for(const registration of await navigator.serviceWorker.getRegistrations())await registration.unregister();for(const name of await caches.keys())if(name.startsWith('appbuildershackathon-'))await caches.delete(name);});
  await page.goto('about:blank');await page.goto('http://127.0.0.1:4173/');await page.waitForFunction(()=>document.getElementById('app-status').textContent==='Available offline');
- await context.setOffline(true);await page.reload();await page.waitForFunction(()=>document.getElementById('organizer-root').dataset.aiState==='ready',{},{timeout:120000});
+ await context.setOffline(true);await page.reload();await page.locator('#tab-organize').click();await page.waitForFunction(()=>document.getElementById('organizer-root').dataset.aiState==='ready',{},{timeout:120000});
  await page.locator('#organizer-folder').setInputFiles(`${root}/inbox`);await page.locator('#inventory-list label',{hasText:'private.txt'}).locator('input').uncheck();
  const started=Date.now();await page.locator('#generate-proposal').click();
  await page.waitForFunction(()=>!document.getElementById('proposal-area').hidden||(!document.getElementById('generate-proposal').disabled&&document.getElementById('organizer-status').dataset.state==='error'),{},{timeout:900000});

@@ -1,8 +1,12 @@
 // Increment APP_VERSION and the matching index.html meta tag together for each release.
-const APP_VERSION = 'v9';
+const APP_VERSION = 'v10';
 const CACHE_PREFIX = 'appbuildershackathon-';
 const CACHE_NAME = `${CACHE_PREFIX}${APP_VERSION}`;
 const APP_ASSETS = [
+  '/theme-init.js',
+  '/shell/shell.js',
+  '/shell/compat.js',
+  '/shell/theme.js',
   '/ai/capabilities.js',
   '/ai/extract.js',
   '/ai/model-folder.js',

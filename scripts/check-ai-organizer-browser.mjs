@@ -13,7 +13,7 @@ try {
  // Refresh only the test profile's shell, retaining its explicitly prepared
  // pinned model caches. This avoids same-version development cache artifacts.
  await page.evaluate(async()=>{for(const registration of await navigator.serviceWorker.getRegistrations())await registration.unregister();for(const name of await caches.keys())if(name.startsWith('appbuildershackathon-'))await caches.delete(name);});await page.goto('about:blank');await page.goto('http://127.0.0.1:4173/');await page.waitForFunction(()=>document.getElementById('app-status').textContent==='Available offline');
- await context.setOffline(true);await page.reload();evidence.offlineReload=true;
+ await context.setOffline(true);await page.reload();await page.locator('#tab-organize').click();evidence.offlineReload=true;
  await page.locator('#organizer-files').setInputFiles([...fixtures.map(item=>`work/evidence/ai-fixtures/${item.name}`),'work/evidence/ai-fixtures/private.txt']);await page.locator('#inventory-list input').last().uncheck();await page.waitForFunction(()=>document.getElementById('organizer-root').dataset.aiState==='ready',{},{timeout:120000});
  monitor=setInterval(()=>{void page.locator('#organizer-status').textContent().then(text=>console.log(text)).catch(()=>{});},15000);
  const started=Date.now();await page.locator('#generate-proposal').click();await page.waitForFunction(()=>!document.getElementById('proposal-area').hidden||(!document.getElementById('generate-proposal').disabled&&document.getElementById('organizer-status').dataset.state==='error'),{},{timeout:1200000});

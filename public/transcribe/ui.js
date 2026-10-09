@@ -1,7 +1,7 @@
 // Transcribe workspace: prepare the Whisper model once, then transcribe selected audio/video files locally.
 // Recordings are only read. Transcripts are new files the user downloads.
 import {checkAiCapabilities} from '../ai/capabilities.js';
-import {filesFromDirectory,filesFromInput,isModelPrepared,saveModelFolder} from '../ai/model-folder.js';
+import {filesFromDirectory,filesFromInput,isModelPrepared,modelFolderEntries,saveModelFolder} from '../ai/model-folder.js';
 import {createArchiveCore} from '../organizer/archive-core.js';
 import {acquireExportLock} from '../transfer/resources.js';
 import {decodeAudio} from './audio.js';
@@ -18,19 +18,20 @@ export function zipTexts(files) {
  for(const file of files){const bytes=encoder.encode(file.text);archive.addEntry({path:file.name,size:bytes.length});for(let at=0;at<bytes.length;at+=32768)archive.write(bytes.subarray(at,at+32768));archive.endEntry();}
  archive.finish();return new Blob(chunks,{type:'application/zip'});
 }
-export function mountTranscribe(root) {
- const $=selector=>root.querySelector(selector),removers=[],urls=[];let manifest,files=[],results=[],active=null,disposed=false;
+export function mountTranscribe(root,{settingsRoot}={}) {
+ // Model controls live on the Settings page; everything else is inside this page.
+ const $=selector=>root.querySelector(selector)||settingsRoot?.querySelector(selector),all=selector=>[...root.querySelectorAll(selector),...(settingsRoot?.querySelectorAll(selector)||[])],removers=[],urls=[];let manifest,files=[],results=[],active=null,disposed=false;
  const listen=(selector,event,fn)=>{const element=$(selector);element.addEventListener(event,fn);removers.push(()=>element.removeEventListener(event,fn));};
- const status=(message,error=false)=>{if(disposed)return;$('#transcribe-status').textContent=message;$('#transcribe-status').dataset.state=error?'error':'ready';};
+ const status=(message,error=false)=>{if(disposed)return;$('#transcribe-status').textContent=message;$('#transcribe-status').dataset.state=error?'error':'ready';$('#transcribe-model-status').textContent=message;$('#transcribe-model-status').dataset.state=error?'error':'ready';};
  const loadManifest=async()=>manifest||=await(await fetch(new URL('./model.json',import.meta.url))).json();
  function buttons() {
   const busy=!!active,ready=root.dataset.transcribeState==='ready';
-  for(const element of root.querySelectorAll('[data-transcribe-setting]'))element.disabled=busy;
-  $('#start-transcribe').disabled=busy||!ready||!files.length;$('#cancel-transcribe').hidden=!busy;$('#download-transcripts').disabled=busy||!results.length;
+  for(const element of all('[data-transcribe-setting]'))element.disabled=busy;
+  $('#start-transcribe').disabled=busy||!ready||!files.length;$('#cancel-transcribe').hidden=$('#cancel-transcribe-setup').hidden=!busy;$('#download-transcripts').disabled=busy||!results.length;
  }
  function setState(state,message) {
-  if(disposed)return;root.dataset.transcribeState=state;$('#transcribe-setup-message').textContent=message;
-  $('#prepare-transcribe').hidden=$('#load-transcribe-folder').hidden=state!=='setup';$('#save-transcribe-folder').hidden=state!=='ready';buttons();
+  if(disposed)return;root.dataset.transcribeState=state;$('#transcribe-setup-message').textContent=message;$('#transcribe-gate-message').textContent=message;
+  $('#prepare-transcribe').hidden=$('#load-transcribe-folder').hidden=state!=='setup';$('#save-transcribe-folder').hidden=$('#remove-transcribe').hidden=state!=='ready';buttons();
  }
  async function refreshState() {
   const caps=await checkAiCapabilities(navigator,{secureContext:window.isSecureContext,model:await loadManifest()});
@@ -88,7 +89,9 @@ export function mountTranscribe(root) {
  listen('#save-transcribe-folder','click',async()=>{if(!window.showDirectoryPicker){status('This browser cannot write folders. Use Chrome or Edge to save the model.',true);return;}let folder;try{folder=await window.showDirectoryPicker({id:'ai-organizer-transcribe-model',mode:'readwrite'});}catch{return;}
   void run(async signal=>{const result=await saveModelFolder(folder,{manifest:await loadManifest(),signal,onProgress:p=>status(`${p.stage} (${p.completed+1}/${p.total})`)});status(`Saved the transcription model to "${folder.name}" (${(result.bytes/1e6).toFixed(0)} MB).`);});});
  listen('#start-transcribe','click',()=>void transcribe());
- listen('#cancel-transcribe','click',()=>active?.abort());
+ listen('#cancel-transcribe','click',()=>active?.abort());listen('#cancel-transcribe-setup','click',()=>active?.abort());
+ listen('#remove-transcribe','click',()=>{if(active||!window.confirm('Remove the transcription model from this browser? You can prepare it again or load it from a saved folder.'))return;
+  void run(async()=>{for(const scope of new Set(modelFolderEntries(await loadManifest()).map(entry=>entry.scope)))await caches.delete(scope);status('Removed the transcription model from this browser.');await refreshState();});});
  listen('#download-transcripts','click',()=>{const url=URL.createObjectURL(zipTexts(results.flatMap(result=>result.outputs)));const link=document.createElement('a');link.href=url;link.download='transcripts.zip';link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);});
  $('#transcribe-formats').replaceChildren(...Object.entries(FORMATS).map(([value,label])=>{const wrapper=document.createElement('label'),box=document.createElement('input');box.type='checkbox';box.name='transcript-format';box.value=value;box.checked=value==='srt';box.dataset.transcribeSetting='';wrapper.append(box,` ${label}`);return wrapper;}));
  root.dataset.transcribeState='checking';showFiles();void refreshState().catch(error=>setState('unsupported',`Transcription check failed: ${error.message}`));

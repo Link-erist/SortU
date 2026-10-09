@@ -19,7 +19,7 @@ async function openApp(context) {
 }
 // 1. A fresh profile sees only the setup card and downloads nothing.
 {const browser=await chromium.launch({channel,headless:true}),context=await browser.newContext();
- try{const {page,errors,external,state}=await openApp(context);assert.equal(state,'setup');assert.equal(await page.locator('#transcribe-files').isVisible(),false);assert.equal(await page.locator('#prepare-transcribe').isVisible(),true);assert.match(await page.locator('#transcribe-setup-message').textContent(),/440 MB/);assert.deepEqual(errors,[]);assert.deepEqual(external,[]);evidence.setup={state,stepsHidden:true};}
+ try{const {page,errors,external,state}=await openApp(context);assert.equal(state,'setup');assert.equal(await page.locator('#transcribe-files').isVisible(),false);await page.locator('#tab-settings').click();assert.equal(await page.locator('#prepare-transcribe').isVisible(),true);await page.locator('#tab-transcribe').click();assert.match(await page.locator('#transcribe-gate-message').textContent(),/440 MB/);assert.match(await page.locator('#transcribe-setup-message').textContent(),/440 MB/);assert.deepEqual(errors,[]);assert.deepEqual(external,[]);evidence.setup={state,stepsHidden:true};}
  finally{await browser.close();}}
 // 2. The prepared profile transcribes offline.
 const context=await chromium.launchPersistentContext(process.env.AI_BROWSER_PROFILE||'work/ai-browser-profile',{channel,headless:true});

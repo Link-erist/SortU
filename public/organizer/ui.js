@@ -7,8 +7,9 @@ import {mountAiControls} from '../ai/ui.js';
 import {MODEL_ID} from '../ai/organize.js';
 import {sha256} from '../vendor/sha256.js';
 
-export function mountOrganizer(root) {
-  const $=selector=>root.querySelector(selector), session=createOrganizerSession(), removers=[];
+export function mountOrganizer(root,{settingsRoot}={}) {
+  // Model controls live on the Settings page; everything else is inside this page.
+  const $=selector=>root.querySelector(selector)||settingsRoot?.querySelector(selector), session=createOrganizerSession(), removers=[];
   let inventory=null, excluded=new Set(), controls={}, readme='', automatic=false, permit=null, job=null, closed=false, guideEpoch=0, guidePending=false, guideError='',aiControls;
   const status=(message,error=false)=>{ $('#organizer-status').textContent=message;$('#organizer-status').dataset.state=error?'error':'ready';};
   const listen=(selector,event,handler)=>{const element=$(selector);element.addEventListener(event,handler);removers.push(()=>element.removeEventListener(event,handler));};
@@ -16,8 +17,8 @@ export function mountOrganizer(root) {
     $('#approve-proposal').disabled=!!job||!session.proposal;
     $('#export-zip').disabled=!!job||!permit;$('#export-folder').disabled=!!job||!permit;
     $('#cancel-export').hidden=!job||!!aiControls?.isBusy();
-    $('#cancel-ai').hidden=!aiControls?.isBusy();
-    for(const el of root.querySelectorAll('[data-setting]')) el.disabled=!!job;
+    $('#cancel-ai').hidden=$('#cancel-ai-setup').hidden=!aiControls?.isBusy();
+    for(const el of [...root.querySelectorAll('[data-setting]'),...(settingsRoot?.querySelectorAll('[data-setting]')||[])]) el.disabled=!!job;
     for(const el of root.querySelectorAll('#inventory-list input, #proposal-list input')) el.disabled=!!job;
   }
   function invalidate() {session.reset();permit=null;$('#proposal-area').hidden=true;buttons();}
@@ -108,7 +109,7 @@ export function mountOrganizer(root) {
   listen('#reset-organizer','click',()=>{inventory=null;excluded.clear();invalidate();inventoryView();releaseDownloadResources('organizer');$('#organizer-files').value='';$('#organizer-folder').value='';status('File selection cleared.');});
   $('#export-folder').hidden=typeof window.showDirectoryPicker!=='function';
   $('#folder-support').textContent=typeof window.showDirectoryPicker==='function'?'Save copies in a new subfolder on supported Windows browsers, or download a ZIP.':'This browser uses ZIP export. Direct folder saving is unavailable.';
-  aiControls=mountAiControls(root,{onModeChange:()=>{invalidate();showRules();inventoryView();$('#generate-proposal').textContent=aiControls.getMode()==='local'?'Analyze and propose':'Generate proposal';$('#analysis-badge').textContent=aiControls.getMode()==='local'?'Local AI':'Basic organization';},onBusy:controller=>{job=controller;buttons();},onStatus:status});
+  aiControls=mountAiControls(root,{settingsRoot,onModeChange:()=>{invalidate();showRules();inventoryView();$('#generate-proposal').textContent=aiControls.getMode()==='local'?'Analyze and propose':'Generate proposal';$('#analysis-badge').textContent=aiControls.getMode()==='local'?'Local AI':'Basic organization';},onBusy:controller=>{job=controller;buttons();},onStatus:status});
   showRules();buttons();
   return ()=>{closed=true;guideEpoch++;job?.abort();aiControls.dispose();session.reset();releaseDownloadResources('organizer');removers.forEach(remove=>remove());};
 }

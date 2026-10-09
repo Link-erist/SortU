@@ -3,10 +3,10 @@ import {createAiOrganizer} from './organize.js';
 import {browserSupport,checkAiCapabilities} from './capabilities.js';
 import {acquireExportLock} from '../transfer/resources.js';
 import {wildcardMatch} from '../organizer/inventory.js';
-import {filesFromDirectory,filesFromInput,isModelPrepared,saveModelFolder} from './model-folder.js';
+import {filesFromDirectory,filesFromInput,isModelPrepared,modelFolderEntries,saveModelFolder} from './model-folder.js';
 import {loadCategories,resetCategories,saveCategories} from '../organizer/categories.js';
-export function mountAiControls(root,{onModeChange,onBusy,onStatus}={}) {
- const $=selector=>root.querySelector(selector),removers=[];let active=null,disposed=false;
+export function mountAiControls(root,{settingsRoot,onModeChange,onBusy,onStatus}={}) {
+ const $=selector=>root.querySelector(selector)||settingsRoot?.querySelector(selector),removers=[];let active=null,disposed=false;
  const status=(message,error=false)=>{if(disposed)return;$('#ai-status').textContent=message;$('#ai-status').dataset.state=error?'error':'ready';};
  const progress=p=>{const message=p.bytes!==undefined?`${p.stage}: ${(p.bytes/1000000).toFixed(1)} MB / ${(p.total/1000000).toFixed(1)} MB`:p.path?`${p.stage}: ${p.path}`:p.summary||p.stage;status(message);onStatus?.(message);};
  const listen=(selector,event,fn)=>{const el=$(selector);el.addEventListener(event,fn);removers.push(()=>el.removeEventListener(event,fn));};
@@ -42,9 +42,9 @@ export function mountAiControls(root,{onModeChange,onBusy,onStatus}={}) {
  // The app chooses the mode: Local AI when this device can run it, basic organization only as a labelled fallback.
  let manifestRequest;const manifest=()=>manifestRequest||=fetch(new URL('./model.json',import.meta.url)).then(response=>response.json());
  function setState(state,message) {
-  if(disposed)return;root.dataset.aiState=state;$('#ai-setup-message').textContent=message;
+  if(disposed)return;root.dataset.aiState=state;$('#ai-setup-message').textContent=message;$('#organizer-gate-message').textContent=message;
   const mode=state==='ready'?'local':'rules';if($('#ai-mode').value!==mode){$('#ai-mode').value=mode;onModeChange?.();}
-  $('#prepare-ai').hidden=$('#load-ai-folder').hidden=state!=='setup';$('#save-ai-folder').hidden=state!=='ready';
+  $('#prepare-ai').hidden=$('#load-ai-folder').hidden=state!=='setup';$('#save-ai-folder').hidden=$('#remove-ai').hidden=state!=='ready';
  }
  async function refreshState() {
   const support=browserSupport(navigator),tested='Local AI is tested on Chrome and Edge on computers, and Chrome on Android.';
@@ -62,7 +62,15 @@ export function mountAiControls(root,{onModeChange,onBusy,onStatus}={}) {
  root.dataset.aiState='checking';void refreshState().catch(error=>setState('basic',`Local AI check failed: ${error.message} Basic organization is available instead.`));
  listen('#save-ai-folder','click',()=>void saveFolder());listen('#load-ai-folder','click',()=>void loadFolder());
  listen('#load-ai-folder-input','change',event=>{const files=event.target.files;if(files?.length)void prepare(filesFromInput(files));event.target.value='';});
- listen('#prepare-ai','click',()=>void prepare());listen('#cancel-ai','click',()=>active?.abort());
+ listen('#prepare-ai','click',()=>void prepare());listen('#cancel-ai','click',()=>active?.abort());listen('#cancel-ai-setup','click',()=>active?.abort());
+ listen('#remove-ai','click',()=>void removeModel());
+ // Deletes the prepared model from this browser's storage; it can be prepared or loaded from a folder again.
+ async function removeModel() {
+  if(active||!window.confirm('Remove the Local AI model from this browser? You can prepare it again or load it from a saved folder.'))return;
+  try{for(const scope of new Set(modelFolderEntries(await manifest()).map(entry=>entry.scope)))await caches.delete(scope);status('Removed the Local AI model from this browser.');}
+  catch(error){status(error.message,true);}
+  await refreshState();
+ }
  function guideReview(guidance,inputs,signal) {
   return new Promise(resolve=>{
    const dialog=$('#guide-review'),list=$('#guide-review-files');list.replaceChildren();$('#guide-review-summary').textContent=`${guidance.summary} Review exclusions by filename before any file is analyzed. Content-based exclusion cannot be determined without reading files; select the files to skip yourself.`;
