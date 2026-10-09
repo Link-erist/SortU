@@ -1,6 +1,6 @@
 // Real check of the portable ZIP: unzip, launch, install the bundled model, generate offline, then confirm a clean delete.
-// Usage: node desktop/scripts/check-portable.mjs <zip> <emptyWorkDir>   (needs PLAYWRIGHT_MODULE or local playwright)
-import {createRequire} from 'node:module';import {spawn,execFileSync} from 'node:child_process';import {mkdir,readdir,rm,stat} from 'node:fs/promises';import {existsSync} from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';
+// Usage: node desktop/scripts/check-portable.mjs <zip> <emptyWorkDir>   (run from the repo root; uses work/evidence/transcribe-fixtures/meeting.wav)   (needs PLAYWRIGHT_MODULE or local playwright)
+import {createRequire} from 'node:module';import {spawn,execFileSync} from 'node:child_process';import {mkdir,readdir,readFile,rm,stat} from 'node:fs/promises';import {existsSync} from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';
 const require=createRequire(import.meta.url),{chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const [zip,work]=process.argv.slice(2).map(value=>path.resolve(value));const tar=path.join(process.env.SystemRoot||'C:\\Windows','System32','tar.exe');
 const evidence={};const appDataMatches=async()=>{const found=[];for(const base of [process.env.LOCALAPPDATA,process.env.APPDATA])for(const name of await readdir(base))if(/aiorganizer|ai organizer|ai-organizer/i.test(name))found.push(path.join(base,name));return found;};
@@ -22,6 +22,11 @@ try {
  evidence.generation=await page.evaluate(async()=>{const {createLocalRuntime}=await import('/ai/runtime.js');const runtime=createLocalRuntime();try{await runtime.verifyOffline();
   return JSON.parse((await runtime.generate({kind:'file',entry:{id:'f1',name:'f1.txt'},guide:'',text:'Invoice INV-2026-013 from Acme Supplies for office paper and pens. Total PHP 1500, due October 30 2026.',rules:{},revision:'portable'})).raw);}finally{runtime.dispose();}});
  assert.match(evidence.generation.category,/invoice|financ|bill/i);
+ // The bundled transcription model must also work offline inside the portable app.
+ const wav=[...await readFile(path.resolve('work/evidence/transcribe-fixtures/meeting.wav'))];
+ evidence.transcription=await page.evaluate(async bytes=>{const {createTranscribeRuntime}=await import('/transcribe/runtime.js');const {decodeAudio}=await import('/transcribe/audio.js');
+  const decoded=await decodeAudio(new File([new Uint8Array(bytes)],'meeting.wav'));const runtime=createTranscribeRuntime();try{await runtime.verifyOffline();return (await runtime.generate({audio:decoded.audio,revision:'portable'})).text;}finally{runtime.dispose();}},wav);
+ assert.match(evidence.transcription,/Atlas/i);
  evidence.externalRequests=external;evidence.pageErrors=errors;assert.deepEqual(external,[]);assert.deepEqual(errors,[]);
 } finally {await browser?.close().catch(()=>{});app.kill();try{execFileSync('taskkill',['/F','/T','/IM','AI Organizer.exe'],{stdio:'ignore'});}catch{}}
 await new Promise(resolve=>setTimeout(resolve,3000));
