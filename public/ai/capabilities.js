@@ -3,7 +3,9 @@ export async function checkAiCapabilities(navigatorLike,{secureContext=globalThi
  if(!navigatorLike.gpu)return {supported:false,reason:'This browser does not expose WebGPU.'};
  try {const adapter=await navigatorLike.gpu.requestAdapter();if(!adapter)return {supported:false,reason:'No usable graphics adapter was found.'};
   const required=model.requiredFeatures||['shader-f16'];if(required.some(feature=>!adapter.features.has(feature)))return {supported:false,reason:'This AI profile requires shader-f16 support.'};
-  if(!(adapter.limits.maxComputeWorkgroupStorageSize>=32768)||!(adapter.limits.maxStorageBuffersPerShaderStage>=10))return {supported:false,reason:'Graphics storage limits are below this model runtime requirement.'};
+  // Minimum GPU limits are per model runtime; without a manifest value, the organizer engine's limits apply.
+  const limits=model.requiredLimits||{maxComputeWorkgroupStorageSize:32768,maxStorageBuffersPerShaderStage:10};
+  if(Object.entries(limits).some(([name,minimum])=>!(adapter.limits[name]>=minimum)))return {supported:false,reason:'Graphics storage limits are below this model runtime requirement.'};
   return {supported:true,features:[...adapter.features],limits:{maxStorageBufferBindingSize:adapter.limits.maxStorageBufferBindingSize,maxBufferSize:adapter.limits.maxBufferSize,maxComputeWorkgroupStorageSize:adapter.limits.maxComputeWorkgroupStorageSize,maxStorageBuffersPerShaderStage:adapter.limits.maxStorageBuffersPerShaderStage},reason:'Capability check passed. Model loading still needs verification.'};
  }catch{return {supported:false,reason:'Graphics access failed.'};}
 }

@@ -56,5 +56,6 @@
   "cache": {
     "model": "transcribe/model",
     "library": "transcribe/engine"
-  }
+  },
+  "requiredLimits": {}
 }

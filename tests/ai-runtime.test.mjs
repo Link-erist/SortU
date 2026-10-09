@@ -41,3 +41,9 @@ test('browser support: Chrome and Edge are supported, Firefox rejected, other br
  assert.equal(browserSupport(ua(chrome+' OPR/120.0.0.0')).level,'untested');assert.equal(browserSupport(ua(chrome.replace('Chrome','SamsungBrowser/27.0 Chrome'))).level,'untested');
  assert.equal(browserSupport({userAgent:chrome,userAgentData:{brands:[{brand:'Brave',version:'155'},{brand:'Chromium',version:'155'}]}}).level,'untested');
 });
+test('GPU limits come from the model manifest; transcription does not inherit the organizer engine limits',async()=>{
+ const {checkAiCapabilities}=await import('../public/ai/capabilities.js');const adapter={features:new Set(['shader-f16']),limits:{maxComputeWorkgroupStorageSize:16384,maxStorageBuffersPerShaderStage:8}};const nav={gpu:{requestAdapter:async()=>adapter}};
+ assert.equal((await checkAiCapabilities(nav,{secureContext:true})).supported,false);
+ assert.equal((await checkAiCapabilities(nav,{secureContext:true,model:{requiredFeatures:['shader-f16'],requiredLimits:{}}})).supported,true);
+ assert.equal((await checkAiCapabilities({gpu:{requestAdapter:async()=>({features:new Set(),limits:{}})}},{secureContext:true,model:{requiredFeatures:['shader-f16'],requiredLimits:{}}})).supported,false);
+});
