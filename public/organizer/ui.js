@@ -108,7 +108,7 @@ export function mountOrganizer(root) {
   listen('#reset-organizer','click',()=>{inventory=null;excluded.clear();invalidate();inventoryView();releaseDownloadResources('organizer');$('#organizer-files').value='';$('#organizer-folder').value='';status('File selection cleared.');});
   $('#export-folder').hidden=typeof window.showDirectoryPicker!=='function';
   $('#folder-support').textContent=typeof window.showDirectoryPicker==='function'?'Save copies in a new subfolder on supported Windows browsers, or download a ZIP.':'This browser uses ZIP export. Direct folder saving is unavailable.';
-  aiControls=mountAiControls(root,{onModeChange:()=>{invalidate();showRules();inventoryView();$('#generate-proposal').textContent=aiControls.getMode()==='local'?'Analyze and propose':'Generate proposal';$('#analysis-badge').textContent=aiControls.getMode()==='local'?'Local AI mode':'Rules-based preview';},onBusy:controller=>{job=controller;buttons();},onStatus:status});
+  aiControls=mountAiControls(root,{onModeChange:()=>{invalidate();showRules();inventoryView();$('#generate-proposal').textContent=aiControls.getMode()==='local'?'Analyze and propose':'Generate proposal';$('#analysis-badge').textContent=aiControls.getMode()==='local'?'Local AI':'Basic organization';},onBusy:controller=>{job=controller;buttons();},onStatus:status});
   showRules();buttons();
   return ()=>{closed=true;guideEpoch++;job?.abort();aiControls.dispose();session.reset();releaseDownloadResources('organizer');removers.forEach(remove=>remove());};
 }
