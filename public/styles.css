@@ -122,3 +122,8 @@ dialog::backdrop {background:#17203699;}
 
 /* Until Local AI is ready (or basic organization is chosen as the fallback), only the setup card is shown. */
 #organizer-root[data-ai-state="checking"] .organizer-step,#organizer-root[data-ai-state="setup"] .organizer-step,#organizer-root[data-ai-state="unsupported"] .organizer-step {display:none;}
+
+/* Transcribe: steps stay hidden until the model is ready. */
+#transcribe-root:not([data-transcribe-state="ready"]) .transcribe-step {display:none;}
+.format-options {display:flex;flex-wrap:wrap;gap:8px 20px;margin:8px 0;}
+.transcript pre {white-space:pre-wrap;word-break:break-word;max-height:220px;overflow:auto;}

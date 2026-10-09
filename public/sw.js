@@ -11,6 +11,7 @@ const APP_ASSETS = [
   '/transcribe/core.js',
   '/transcribe/model.json',
   '/transcribe/runtime.js',
+  '/transcribe/ui.js',
   '/transcribe/worker.js',
   '/vendor/transformers.js',
   '/vendor/ort/ort-wasm-simd-threaded.asyncify.js',

@@ -48,3 +48,9 @@ test('undecodable, silent, too long and oversized media fail with clear messages
  const big=new File(['x'],'big.mp4');Object.defineProperty(big,'size',{value:201*1024*1024});big.arrayBuffer=()=>{throw new Error('read');};await assert.rejects(()=>decodeAudio(big,audioMocks()),/200 MiB/);
  const controller=new AbortController();controller.abort();await assert.rejects(()=>decodeAudio(new File(['x'],'a.mp3'),{...audioMocks(),signal:controller.signal}),/cancel/i);
 });
+test('duplicate transcript names get a number; the ZIP holds every transcript byte for byte',async()=>{
+ const {uniqueNames,zipTexts}=await import('../public/transcribe/ui.js');const {readStoredZip}=await import('./helpers/stored-zip.mjs');
+ assert.deepEqual(uniqueNames(['talk.srt','talk.txt','talk.srt','Talk.SRT']),['talk.srt','talk.txt','talk (2).srt','Talk (3).SRT']);
+ const zip=zipTexts([{name:'talk.srt',text:'1\n00:00:00,000 --> 00:00:01,000\nHi\n'},{name:'talk.txt',text:'[00:00:00] Hi ñ\n'}]);
+ const entries=readStoredZip(Buffer.from(await zip.arrayBuffer()));assert.equal(new TextDecoder().decode(entries['talk.txt']),'[00:00:00] Hi ñ\n');assert.equal(Object.keys(entries).length,2);
+});

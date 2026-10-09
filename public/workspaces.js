@@ -1,9 +1,12 @@
 import {mountOrganizer} from './organizer/ui.js';
 import {mountTransfer} from './transfer/ui.js';
-export function mountWorkspaces({organizerRoot,transferRoot,organizeButton,transferButton,organizerMount=mountOrganizer,transferMount=mountTransfer}) {
-  const cleanups=[organizerMount(organizerRoot),transferMount(transferRoot)];let closed=false;
-  const select=name=>{organizerRoot.hidden=name!=='organize';transferRoot.hidden=name!=='transfer';organizeButton.setAttribute('aria-selected',String(name==='organize'));transferButton.setAttribute('aria-selected',String(name==='transfer'));};
-  const organize=()=>select('organize'),transfer=()=>select('transfer');select('organize');
-  organizeButton.addEventListener('click',organize);transferButton.addEventListener('click',transfer);
-  return ()=>{if(closed)return;closed=true;organizeButton.removeEventListener('click',organize);transferButton.removeEventListener('click',transfer);cleanups.forEach(cleanup=>cleanup());};
+import {mountTranscribe} from './transcribe/ui.js';
+// Each workspace mounts once and keeps its state while hidden; switching only changes visibility.
+export function mountWorkspaces({organizerRoot,transferRoot,transcribeRoot,organizeButton,transferButton,transcribeButton,organizerMount=mountOrganizer,transferMount=mountTransfer,transcribeMount=mountTranscribe}) {
+  const workspaces=[['organize',organizerRoot,organizeButton,organizerMount],['transfer',transferRoot,transferButton,transferMount],['transcribe',transcribeRoot,transcribeButton,transcribeMount]].filter(([,root,button])=>root&&button);
+  const cleanups=workspaces.map(([,root,,mount])=>mount(root));let closed=false;
+  const select=name=>{for(const [id,root,button] of workspaces){root.hidden=id!==name;button.setAttribute('aria-selected',String(id===name));}};
+  const handlers=workspaces.map(([id,,button])=>{const handler=()=>select(id);button.addEventListener('click',handler);return [button,handler];});
+  select('organize');
+  return ()=>{if(closed)return;closed=true;for(const [button,handler] of handlers)button.removeEventListener('click',handler);cleanups.forEach(cleanup=>cleanup());};
 }
