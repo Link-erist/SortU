@@ -1,5 +1,5 @@
 // Increment APP_VERSION and the matching index.html meta tag together for each release.
-const APP_VERSION = 'v2';
+const APP_VERSION = 'v3';
 const CACHE_PREFIX = 'appbuildershackathon-';
 const CACHE_NAME = `${CACHE_PREFIX}${APP_VERSION}`;
 const APP_ASSETS = [
@@ -7,7 +7,7 @@ const APP_ASSETS = [
   '/icons/mark.svg', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png',
   '/transfer-entry.js', '/transfer/pairing.js', '/transfer/qr.js', '/transfer/protocol.js',
   '/transfer/engine.js', '/transfer/storage.js', '/transfer/hash.js', '/transfer/hash-worker.js',
-  '/transfer/ui.js', '/vendor/qrcodegen.js', '/vendor/jsqr.js', '/vendor/sha256.js',
+  '/transfer/ui.js', '/transfer/resources.js', '/vendor/qrcodegen.js', '/vendor/jsqr.js', '/vendor/sha256.js',
   '/vendor/LICENSES.txt', '/vendor/manifest.json'
 ];
 

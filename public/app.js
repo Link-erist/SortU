@@ -47,7 +47,8 @@ async function prepareOfflineAccess() {
       channel.port1.onmessage = event => {clearTimeout(timer);channel.port1.close();channel.port2.close();resolve(event.data.version);};
       registration.active.postMessage({type: 'APP_VERSION'}, [channel.port2]);
     });
-    if (version !== 'v2') {
+    const expectedVersion = document.querySelector('meta[name="app-shell-version"]').content;
+    if (version !== expectedVersion) {
       appStatus.textContent = 'Update prepared. Close all app windows and reopen.';
       appStatus.dataset.state = 'pending';
       return;

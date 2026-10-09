@@ -69,16 +69,20 @@ function waitForIce(peer, signal) {
   });
 }
 
-export async function createPairing({role,payload,peerFactory = config => new RTCPeerConnection(config),clock = Date.now}) {
+export async function createPairing({role,payload,peerFactory = config => new RTCPeerConnection(config),clock = Date.now,connectionTimeout=30000}) {
   if (!['offer','answer'].includes(role)) throw new Error('Invalid pairing role.');
   if (role === 'answer') {validatePairing(payload,clock());if(payload.role !== 'offer') throw new Error('Scan the sender offer first.');}
   const peer = peerFactory({iceServers:[]}); const controller = new AbortController();
-  let channel; let offer = role === 'answer' ? payload.description : null; let answer = null; let closed = false;
+  let channel; let offer = role === 'answer' ? payload.description : null; let answer = null; let closed = false;let connectionTimer;let opened=false;
   let readyResolve,readyReject;
   const channelReady = new Promise((resolve,reject)=>{readyResolve=resolve;readyReject=reject;});
   channelReady.catch(()=>{});
-  const bind = value => {channel=value;channel.binaryType='arraybuffer';if(channel.readyState==='open')readyResolve(channel);else channel.addEventListener?.('open',()=>{if(!closed)readyResolve(channel);},{once:true});};
+  const failed=message=>{if(closed||opened)return;closed=true;clearTimeout(connectionTimer);peer.close();readyReject(new Error(message));};
+  const armTimeout=(milliseconds,message)=>{clearTimeout(connectionTimer);if(!opened)connectionTimer=setTimeout(()=>failed(message),milliseconds);};
+  const ready=()=>{if(!closed){opened=true;clearTimeout(connectionTimer);readyResolve(channel);}};
+  const bind = value => {channel=value;channel.binaryType='arraybuffer';if(channel.readyState==='open')ready();else channel.addEventListener?.('open',ready,{once:true});};
   peer.addEventListener('datachannel',event=>{if(!closed)bind(event.channel);});
+  peer.addEventListener('connectionstatechange',()=>{if(peer.connectionState==='failed')failed('Local connection failed. Check Wi-Fi and re-pair.');});
   try {
     if (role === 'offer') {bind(peer.createDataChannel('files-v1',{ordered:true}));await peer.setLocalDescription(await peer.createOffer());}
     else {await peer.setRemoteDescription(payload.description);await peer.setLocalDescription(await peer.createAnswer());}
@@ -86,11 +90,12 @@ export async function createPairing({role,payload,peerFactory = config => new RT
     const local = {type:peer.localDescription.type,sdp:peer.localDescription.sdp};
     if (role === 'offer') offer=local; else answer=local;
     const result = {version:1,pairingId:payload?.pairingId || crypto.randomUUID(),role,expiresAt:payload?.expiresAt || clock()+300000,description:local};
+    armTimeout(Math.max(1,result.expiresAt-clock()),'Pairing expired. Create and exchange new QR codes.');
     return {
       payload:result,peer,channelReady,
-      async applyAnswer(value) {if(closed)throw new Error('Pairing closed.');validatePairing(value,clock());if(role!=='offer'||value.role!=='answer'||value.pairingId!==result.pairingId)throw new Error('Answer does not match this session.');answer=value.description;await peer.setRemoteDescription(answer);},
+      async applyAnswer(value) {if(closed)throw new Error('Pairing closed.');validatePairing(value,clock());if(role!=='offer'||value.role!=='answer'||value.pairingId!==result.pairingId)throw new Error('Answer does not match this session.');answer=value.description;await peer.setRemoteDescription(answer);armTimeout(connectionTimeout,'Local connection timed out. Check that both devices share a local network without guest isolation, then re-pair.');},
       async verificationCode() {if(!offer||!answer)throw new Error('Finish exchanging pairing codes first.');return verificationCode(offer,answer);},
-      close() {closed=true;controller.abort();channel?.close?.();peer.close();readyReject(new Error('Pairing closed.'));}
+      close() {closed=true;clearTimeout(connectionTimer);controller.abort();channel?.close?.();peer.close();readyReject(new Error('Pairing closed.'));}
     };
   } catch(error) {controller.abort();peer.close();readyReject(error);throw error;}
 }

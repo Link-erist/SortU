@@ -61,3 +61,46 @@ test('same-page resume verifies retained prefix and completes after re-pairing',
  assert.equal(await hashPrefix(await sink.getBlob()),await hashPrefix(new Blob([bytes])));
  sender.close();await receiver.close();
 });
+
+test('re-pairing preserves the verified save gate and continues after export',async()=>{
+ const {createTransferEngine}=await import('../public/transfer/engine.js');let [a,b]=pair();const events=[];
+ const sender=createTransferEngine({role:'send',channel:a,pairingVerified:true});const receiver=createTransferEngine({role:'receive',channel:b,pairingVerified:true,onEvent:e=>events.push(e)});await wait(()=>sender.ready&&receiver.ready);
+ const manifest=await sender.offer([new File(['a'],'first.txt'),new File(['b'],'second.txt')]);await wait(()=>events.some(e=>e.type==='manifest'));
+ const sinks=new Map();for(const entry of manifest.files){const sink=await prepareSink(entry,{mode:'memory'});sink.export=async()=>({state:'export-requested',name:entry.name});sinks.set(entry.id,sink);}
+ await receiver.accept(manifest.files.map(f=>f.id),sinks);await wait(()=>events.some(e=>e.type==='verified'));
+ a.close();b.close();[a,b]=pair();sender.reconnect(a,true);receiver.reconnect(b,true);await wait(()=>sender.ready&&receiver.ready);
+ await assert.rejects(()=>receiver.resume(),/save.*verif/i);
+ await receiver.exportFile(manifest.files[0].id);await wait(()=>events.filter(e=>e.type==='verified').length===2);
+ assert.equal(await (await sinks.get(manifest.files[1].id).getBlob()).text(),'b');sender.close();await receiver.close();
+});
+
+test('inactivity pauses without discarding accepted receiver storage',async()=>{
+ const {createTransferEngine}=await import('../public/transfer/engine.js');const [a,b]=pair();const events=[];let now=0;
+ const originalClose=a.close.bind(a);a.close=()=>{originalClose();b.close();};
+ const sender=createTransferEngine({role:'send',channel:a,pairingVerified:true,clock:()=>{now+=10000;return now;},onEvent:e=>events.push(e)});
+ const receiver=createTransferEngine({role:'receive',channel:b,pairingVerified:true,onEvent:e=>events.push(e)});await wait(()=>sender.ready&&receiver.ready);
+ const manifest=await sender.offer([new File(['a'],'one.txt')]);await wait(()=>events.some(e=>e.type==='manifest'));const sink=await prepareSink(manifest.files[0],{mode:'memory'});
+ a.bufferedAmount=1048576;await receiver.accept([manifest.files[0].id],new Map([[manifest.files[0].id,sink]]));await wait(()=>events.some(e=>e.type==='paused'));
+ assert.equal((await sink.getBlob()).size,0);assert.equal(events.some(e=>e.type==='error'),false);sender.close();await receiver.close();
+});
+
+test('sender respects negotiated chunk limits and a bounded unacknowledged window',async t=>{
+ const {createTransferEngine}=await import('../public/transfer/engine.js');const [a,b]=pair();a.maxMessageSize=8192;const events=[];
+ const sender=createTransferEngine({role:'send',channel:a,pairingVerified:true});const receiver=createTransferEngine({role:'receive',channel:b,pairingVerified:true,onEvent:e=>events.push(e)});t.after(async()=>{sender.close();await receiver.close();});
+ await wait(()=>sender.ready&&receiver.ready);const manifest=await sender.offer([new File([new Uint8Array(2*1048576)],'window.bin')]);await wait(()=>events.some(e=>e.type==='manifest'));
+ const sink=await prepareSink(manifest.files[0],{mode:'memory'});let release;const gate=new Promise(resolve=>{release=resolve;});const original=sink.write.bind(sink);sink.write=async(...args)=>{await gate;return original(...args);};
+ await receiver.accept([manifest.files[0].id],new Map([[manifest.files[0].id,sink]]));
+ const bytes=()=>a.sent.filter(v=>v instanceof ArrayBuffer).reduce((n,v)=>n+v.byteLength-49,0);
+ await wait(()=>bytes()>1048576-8192);await new Promise(resolve=>setTimeout(resolve,80));
+ assert.ok(bytes()<=1048576);assert.ok(a.sent.filter(v=>v instanceof ArrayBuffer).every(v=>v.byteLength<=8192));
+ await receiver.cancel();release();
+});
+
+test('receiver never acknowledges a failed storage write',async t=>{
+ const {createTransferEngine}=await import('../public/transfer/engine.js');const [a,b]=pair();const events=[];
+ const sender=createTransferEngine({role:'send',channel:a,pairingVerified:true});const receiver=createTransferEngine({role:'receive',channel:b,pairingVerified:true,onEvent:e=>events.push(e)});t.after(async()=>{sender.close();await receiver.close();});
+ await wait(()=>sender.ready&&receiver.ready);const manifest=await sender.offer([new File(['a'],'quota.txt')]);await wait(()=>events.some(e=>e.type==='manifest'));
+ const sink=await prepareSink(manifest.files[0],{mode:'custom',adapters:{writer:{write:async()=>{throw new Error('quota exhausted');},abort:async()=>{}}}});
+ await receiver.accept([manifest.files[0].id],new Map([[manifest.files[0].id,sink]]));await wait(()=>events.some(e=>e.type==='error'));
+ assert.equal(b.sent.filter(v=>typeof v==='string').some(v=>JSON.parse(v).type==='ack'),false);assert.equal(events.some(e=>e.type==='verified'),false);
+});

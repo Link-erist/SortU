@@ -19,7 +19,7 @@ export function createTransferEngine({role,channel,pairingVerified=false,sinkFac
     accepted=false;await cleanupSinks();
   };
   async function waitUntil(predicate,token,{timeout=60000}={}) {
-    const start=clock();while(!predicate()){if(!alive(token))throw new Error('Transfer paused.');if(clock()-start>timeout)throw new Error('Transfer timed out. Re-pair while keeping both pages open.');await new Promise(resolve=>setTimeout(resolve,15));}
+    const start=clock();while(!predicate()){if(!alive(token))throw new Error('Transfer paused.');if(clock()-start>timeout)throw Object.assign(new Error('Transfer timed out. Re-pair while keeping both pages open.'),{recoverable:true});await new Promise(resolve=>setTimeout(resolve,15));}
   }
   async function sendFile(record,start=0) {
     const token=generation;const source=sources.get(record.entry.id);const hash=hasherFactory();
@@ -39,7 +39,7 @@ export function createTransferEngine({role,channel,pairingVerified=false,sinkFac
       if(!alive(token))return;
       control({type:'complete',transferId:manifest.transferId,fileId:record.entry.id,digest:await hash.digest()});
       let attempts=0;
-      while(!record.state){await waitUntil(()=>record.state||clock()-lastActivity>1000,token,{timeout:10000});if(!record.state){if(++attempts>60)throw new Error('Completion response timed out.');control({type:'status',transferId:manifest.transferId,fileId:record.entry.id});lastActivity=clock();}}
+      while(!record.state){await waitUntil(()=>record.state||clock()-lastActivity>1000,token,{timeout:10000});if(!record.state){if(++attempts>60)throw Object.assign(new Error('Completion response timed out. Re-pair to continue.'),{recoverable:true});control({type:'status',transferId:manifest.transferId,fileId:record.entry.id});lastActivity=clock();}}
       // Wait for user export before sending another file, keeping memory bounded.
       await waitUntil(()=>record.state==='saved'||record.state==='export-requested',token,{timeout:Number.MAX_SAFE_INTEGER});
     } finally {hash.dispose();}
@@ -47,7 +47,7 @@ export function createTransferEngine({role,channel,pairingVerified=false,sinkFac
   async function pump(startId,startOffset=0) {
     if(running)return;running=true;const token=generation;
     try{const records=Array.from(sending.values());let start=startId?records.findIndex(r=>r.entry.id===startId):0;for(let i=start;i<records.length;i++){if(!alive(token))break;const record=records[i];if(record.state==='saved'||record.state==='export-requested')continue;await sendFile(record,i===start?startOffset:0);}}
-    catch(error){if(alive(token))await fail(error);}finally{if(token===generation)running=false;}
+    catch(error){if(alive(token)){if(error.recoverable){paused=true;generation++;running=false;remoteVerified=false;localVerified=false;emit('paused',{message:error.message});channel.close();}else await fail(error);}}finally{if(token===generation)running=false;}
   }
   function checkTransaction(m){if(!manifest||m.transferId!==manifest.transferId)throw new Error('Unknown or stale transfer.');}
   async function handle(data) {
@@ -84,7 +84,7 @@ export function createTransferEngine({role,channel,pairingVerified=false,sinkFac
       if(record.state)control({type:'completed',transferId:manifest.transferId,fileId:m.fileId,state:record.state});return;
     }
     if(m.type==='completed'){
-      const record=sending.get(m.fileId);if(role!=='send'||!accepted||!record||record.ack!==record.entry.size)throw new Error('Unexpected completion result.');record.state=m.state;emit(m.state,{fileId:m.fileId,name:record.entry.name,remote:true});return;
+      const record=sending.get(m.fileId);if(role!=='send'||!accepted||!record||record.ack!==record.entry.size)throw new Error('Unexpected completion result.');record.state=m.state;emit(m.state,{fileId:m.fileId,name:record.entry.name,remote:true});if(!running&&(m.state==='saved'||m.state==='export-requested'))void pump();return;
     }
     if(m.type==='resume'){
       if(role!=='send')throw new Error('Unexpected resume request.');const source=sources.get(m.fileId);const record=sending.get(m.fileId);
@@ -119,7 +119,7 @@ export function createTransferEngine({role,channel,pairingVerified=false,sinkFac
     async cancel(){if(manifest&&channel.readyState==='open')control({type:'cancel',transferId:manifest.transferId});generation++;running=false;accepted=false;await cleanupSinks();received.clear();sources.clear();sending.clear();manifest=null;paused=false;listeners.splice(0).forEach(remove=>remove());bind(channel);emit('canceled');},
     async exportFile(fileId){const record=received.get(fileId);if(!record||record.state!=='verified')throw new Error('File is not ready to save.');const result=await record.sink.export();record.state=result.state;if(ready())control({type:'completed',transferId:manifest.transferId,fileId,state:result.state});emit(result.state,{fileId,name:record.entry.name});return result;},
     reconnect(value,verified=false){listeners.splice(0).forEach(remove=>remove());generation++;running=false;paused=false;localVerified=verified;remoteVerified=false;incoming=Promise.resolve();bind(value);},
-    async resume(){if(role!=='receive'||!ready()||!accepted)throw new Error('Re-pair and confirm both devices before resuming.');const record=Array.from(received.values()).find(r=>!r.state);if(!record)throw new Error('No partial file to resume. Save the verified file or cancel.');const offset=record.sink.confirmedOffset;control({type:'resume',transferId:manifest.transferId,fileId:record.entry.id,offset,digest:await record.sink.hashPrefix(offset)});emit('resuming');},
+    async resume(){if(role!=='receive'||!ready()||!accepted)throw new Error('Re-pair and confirm both devices before resuming.');const record=Array.from(received.values()).find(r=>r.state!=='saved'&&r.state!=='export-requested');if(!record)throw new Error('No partial file to resume.');if(record.state==='verified')throw new Error('Save the verified file before resuming the next file.');const offset=record.sink.confirmedOffset;control({type:'resume',transferId:manifest.transferId,fileId:record.entry.id,offset,digest:await record.sink.hashPrefix(offset)});emit('resuming');},
     async close(){closed=true;generation++;clearInterval(timer);listeners.splice(0).forEach(remove=>remove());await cleanupSinks();sources.clear();received.clear();sending.clear();}
   };
   return engine;

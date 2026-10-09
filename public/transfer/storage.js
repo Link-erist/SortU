@@ -1,5 +1,6 @@
 import {LIMITS} from './protocol.js';
 import {createHasher,hashPrefix} from './hash.js';
+import {downloadBudget} from './resources.js';
 
 export async function prepareSink(entry,{mode='auto',destination,adapters={}}={}) {
   const usePrivate=mode!=='memory'&&mode!=='custom'&&!!globalThis.navigator?.storage?.getDirectory;
@@ -7,7 +8,7 @@ export async function prepareSink(entry,{mode='auto',destination,adapters={}}={}
   if(!destination&&entry.size>LIMITS.blob)throw new Error('This save method has a 64 MiB file limit. Choose a streaming save destination.');
   if(!usePrivate&&destination&&entry.size>LIMITS.blob)throw new Error('Large files need browser private storage for safe staging.');
   let root,handle,writer=adapters.writer;let chunks=[];let offset=0;let closed=false;let verified=false;let exported=null;
-  const hash=createHasher();
+  const hash=createHasher();const controller=new AbortController();
   try{
     if(usePrivate){const estimate=await navigator.storage.estimate();if(Number.isFinite(estimate.quota)&&entry.size>Math.max(0,estimate.quota-(estimate.usage||0)))throw new Error('Insufficient browser storage.');root=await navigator.storage.getDirectory();handle=await root.getFileHandle(`transfer-${entry.id}-${crypto.randomUUID()}`,{create:true});writer=await handle.createWritable();}
   }catch(error){hash.dispose();if(root&&handle)await root.removeEntry(handle.name).catch(()=>{});throw error;}
@@ -26,11 +27,13 @@ export async function prepareSink(entry,{mode='auto',destination,adapters={}}={}
       else {if(blob.size>LIMITS.blob)throw new Error('Download export exceeds the 64 MiB limit.');if(!globalThis.document)throw new Error('Download requires a browser.');
         // OPFS File objects depend on their backing entry. Materialize only the
         // bounded download fallback before deleting staging, so it stays valid.
-        const downloadBlob=handle?new Blob([await blob.arrayBuffer()],{type:'application/octet-stream'}):blob;
-        const url=URL.createObjectURL(downloadBlob);const link=document.createElement('a');link.href=url;link.download=entry.name;link.rel='noopener';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);exported={state:'export-requested',name:entry.name};}
+        const lease=await downloadBudget.reserve(blob.size,controller.signal);
+        try{ensure();const downloadBlob=handle?new Blob([await blob.arrayBuffer()],{type:'application/octet-stream'}):blob;ensure();
+          const url=URL.createObjectURL(downloadBlob);lease.url=url;const link=document.createElement('a');link.href=url;link.download=entry.name;link.rel='noopener';document.body.append(link);link.click();link.remove();lease.timer=setTimeout(()=>lease.release(),60000);exported={state:'export-requested',name:entry.name};
+        }catch(error){lease.release();throw error;}}
       await remove();chunks=[];finalBlob=null;return exported;
     },
-    async abort(){if(closed)return;closed=true;hash.dispose();if(writer)await writer.abort().catch(()=>{});writer=null;chunks=[];finalBlob=null;await remove();}
+    async abort(){if(closed)return;closed=true;controller.abort();hash.dispose();if(writer)await writer.abort().catch(()=>{});writer=null;chunks=[];finalBlob=null;await remove();}
   };
   return sink;
 }

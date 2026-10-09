@@ -40,3 +40,19 @@ test('verification code binds both full descriptions', async () => {
   assert.notEqual(first, await verificationCode(offer, description('answer','CC:DD')));
   assert.match(first, /^[0-9A-F]{4} [0-9A-F]{4}$/);
 });
+
+test('pairing reports a failed local connection instead of waiting forever',async()=>{
+ const {createPairing}=await load();let closed=false;
+ const peer={iceGatheringState:'complete',createDataChannel:()=>({addEventListener(){}}),createOffer:async()=>description('offer'),setLocalDescription:async d=>{peer.localDescription=d;},setRemoteDescription:async()=>{},addEventListener(){},close(){closed=true;}};
+ const session=await createPairing({role:'offer',peerFactory:()=>peer,connectionTimeout:10});
+ await session.applyAnswer({...session.payload,role:'answer',description:description('answer')});
+ let error;try{await Promise.race([session.channelReady,new Promise((_resolve,reject)=>setTimeout(()=>reject(new Error('Unbounded connection wait')),100))]);}catch(e){error=e;}
+ const timedOutClosed=closed;session.close();assert.match(error?.message||'',/timed out|local network/i);assert.equal(timedOutClosed,true);
+});
+
+test('QR exchange is not cut short by the later connection timeout',async()=>{
+ const {createPairing}=await load();let closed=false;
+ const peer={iceGatheringState:'complete',createDataChannel:()=>({addEventListener(){}}),createOffer:async()=>description('offer'),setLocalDescription:async d=>{peer.localDescription=d;},addEventListener(){},close(){closed=true;}};
+ const session=await createPairing({role:'offer',peerFactory:()=>peer,connectionTimeout:10});
+ await new Promise(resolve=>setTimeout(resolve,30));const prematurelyClosed=closed;session.close();assert.equal(prematurelyClosed,false);
+});

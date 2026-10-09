@@ -82,6 +82,8 @@ Ordinary download export is limited to **64 MiB per file**. Windows browsers tha
 
 On interruption, keep the pages and selected source files open, re-pair and confirm again, then use **Resume retained transfer** on the receiver. The stored prefix must match. Reload recovery is not supported. Cancel or end the session to discard partial receiving storage. Incoming files are never executed automatically.
 
+Download object URLs share a 64 MiB memory budget. Large batches can wait up to 60 seconds for earlier download buffers to be released. Wait for browser downloads to finish before ending the session or closing the page; ending the session releases retained URLs. This bounds retained exports, not total browser memory.
+
 ## Transfer development and disclosure
 
 Bundled dependencies: Nayuki QR Code generator, jsQR 1.4.0, and the SHA-256 subset of noble-hashes 2.0.1. Versions, hashes, and licenses are in `public/vendor/manifest.json` and `public/vendor/LICENSES.txt`. esbuild 0.25.12 is a development bundler. No model or AI service is used by transfer. Development is AI-assisted through Codex; the transfer subsystem is new, while the PWA shell predates this feature.

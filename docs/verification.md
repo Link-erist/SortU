@@ -2,6 +2,17 @@
 
 ## Offline transfer feature, October 9, 2026
 
+### Final review and regression checks
+
+- Independent read-only review identified three issues: verified-but-unsaved resume ordering, destructive inactivity recovery, and aggregate retained download memory. Each now has a failing-before-fix regression that passes. Resume preserves the save gate and resumes the sender after export; inactivity pauses without deleting accepted storage; download URLs share a 64 MiB credit budget and are cleaned on session exit.
+- Pairing allows its full five-minute QR exchange window, then the sender has a 30-second local-connect timeout after applying the reply. Both cases are tested. The final shell is v3; the app compares its own HTML version with the active worker before claiming offline readiness.
+- Full UI check passed at 64 MiB plus an empty file, with actual saved-file hashes matching: `98dc891b284e4d84ac25b0c0a24fdbe39a7f0dbd643ad5e8aa06e02fc6258254`. No page errors or mobile-width overflow.
+- The 64 MiB check displayed approximately 0.75 MB/s for confirmed bytes, including UI preparation time. This is same-PC Edge with HTTP blocked, not a physical LAN speed claim or a validated 5 to 20 MB/s target. Browser storage profiling showed 8 MiB writes taking approximately 213 ms in memory and 416 ms in private storage; no speculative storage batching was introduced.
+- Final added transfer scripts/libraries: 197,724 raw bytes, 71,663 gzip bytes, excluding existing shell and license metadata. This is payload footprint, not measured browser RAM.
+- Final `npm test`: 36 passed, 0 failed, including bounded sender window, negotiated chunk size, failed-write acknowledgment, pairing deadlines, and old-worker readiness. JavaScript syntax checks and `git diff --check` pass.
+
+The checkpoint below preserves pre-review evidence; final fresh test results are recorded in the execution ledger.
+
 Feature branch: `feat/offline-webrtc-transfer`. These results concern local feature code; they do not mean production has been updated.
 
 - `npm test`: 27 passed, 0 failed at this checkpoint. Missing modules were observed failing before implementation; cancellation-reuse and capability checks failed before their fixes.
