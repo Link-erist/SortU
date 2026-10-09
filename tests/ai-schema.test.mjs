@@ -23,3 +23,7 @@ test('suggestions may carry a safe topic subfolder; it is optional and validated
  for(const bad of ['../x','a/b','C:','x'.repeat(61),'..'])assert.throws(()=>validateSuggestion(JSON.stringify({...valid,topic:bad}),{fileId:'one'}),undefined,bad);
  assert.ok(JSON.parse(responseFormat('file','one').schema).required.includes('topic'));
 });
+test('merge responses can only reference the supplied group ids',async()=>{
+ const {responseFormat}=await import('../public/ai/schema.js');const schema=JSON.parse(responseFormat('merge',['g1','g2']).schema);
+ assert.deepEqual(schema.properties.merges.items.properties.from.enum,['g1','g2']);assert.deepEqual(schema.properties.merges.items.properties.into.enum,['g1','g2']);assert.equal(schema.properties.merges.items.additionalProperties,false);
+});

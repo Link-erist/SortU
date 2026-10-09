@@ -70,3 +70,28 @@ test('the model receives file metadata, categories and only included batch names
  assert.deepEqual(seen[0].otherFiles,['notes.txt']);assert.ok(seen.every(args=>!JSON.stringify(args).includes('private-salary')));
  assert.equal(result.suggestions[0].topic,'Harbor');
 });
+const longText=topic=>`Meeting minutes and planning notes for ${topic}, covering milestones, testing assignments and the next review date.`;
+function topicRuntime(topics,merge,calls=[]) {
+ return ()=>({...runtime(),generate:async args=>{calls.push(args);if(args.kind==='merge')return {raw:typeof merge==='function'?merge(args):JSON.stringify(merge)};const topic=topics[args.entry.name];return {raw:JSON.stringify({fileId:args.entry.id,category:topic[0],topic:topic[1],stem:'notes',reason:'Notes.',sufficient:true})};}});
+}
+test('the merge step groups near-duplicate topics within a category using only group summaries',async()=>{
+ const {createAiOrganizer}=await import('../public/ai/organize.js');const calls=[];
+ const topics={'a.txt':['Projects','Atlas Project'],'b.txt':['Projects','Project Atlas'],'c.txt':['Projects','Harbor'],'d.txt':['Invoices','Acme']};
+ const ai=createAiOrganizer({runtimeFactory:topicRuntime(topics,args=>{const id=name=>args.groups.find(group=>group.topic===name).id;return JSON.stringify({merges:[{from:id('Project Atlas'),into:id('Atlas Project')}]});},calls),extractor:async entry=>({fileId:entry.id,text:longText(entry.name),status:'text',truncated:false,evidence:'Text'})});
+ const inventory=createInventory(Object.keys(topics).map(name=>new File([longText(name)],name)));const result=await ai.analyze({inventory,rules:defaultRules(),guide:'',revision:'one'});
+ const merge=calls.find(args=>args.kind==='merge');assert.ok(merge);assert.equal(merge.groups.length,4);assert.ok(!JSON.stringify(merge).includes('a.txt')&&!JSON.stringify(merge).includes('Meeting minutes'));
+ assert.deepEqual(result.suggestions.map(item=>item.topic),['Atlas Project','Atlas Project','Harbor','Acme']);assert.match(result.suggestions[1].reason,/Atlas Project/);
+});
+test('invalid merges are ignored: cross-category, unknown ids, self and cycles; analysis still completes',async()=>{
+ const {createAiOrganizer}=await import('../public/ai/organize.js');const topics={'a.txt':['Projects','Atlas'],'b.txt':['Invoices','Acme'],'c.txt':['Projects','Harbor']};
+ for(const merge of [{merges:[{from:'g2',into:'g1'}]},{merges:[{from:'g9',into:'g1'}]},{merges:[{from:'g1',into:'g1'}]},{merges:[{from:'g1',into:'g3'},{from:'g3',into:'g1'}]},'not json']) {
+  const ai=createAiOrganizer({runtimeFactory:topicRuntime(topics,merge),extractor:async entry=>({fileId:entry.id,text:longText(entry.name),status:'text',truncated:false,evidence:'Text'})});
+  const result=await ai.analyze({inventory:createInventory(Object.keys(topics).map(name=>new File([longText(name)],name))),rules:defaultRules(),guide:'',revision:'one'});
+  assert.deepEqual(result.suggestions.map(item=>item.topic),['Atlas','Acme','Harbor'],JSON.stringify(merge));
+ }
+});
+test('the merge step is skipped when there is nothing to merge',async()=>{
+ const {createAiOrganizer}=await import('../public/ai/organize.js');const calls=[];const topics={'a.txt':['Projects','Atlas'],'b.txt':['Invoices','']};
+ const ai=createAiOrganizer({runtimeFactory:topicRuntime(topics,{merges:[]},calls),extractor:async entry=>({fileId:entry.id,text:longText(entry.name),status:'text',truncated:false,evidence:'Text'})});
+ await ai.analyze({inventory:createInventory(Object.keys(topics).map(name=>new File([longText(name)],name))),rules:defaultRules(),guide:'',revision:'one'});assert.equal(calls.some(args=>args.kind==='merge'),false);
+});

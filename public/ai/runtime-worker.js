@@ -35,7 +35,7 @@ self.onmessage=async({data})=>{
   else if(data.type==='generate'){
    if(!engine||!tokenizer)throw new Error('Prepare or load local AI first.');
    const {buildPrompt}=await import('./prompts.js');const prompt=buildPrompt(data.payload,tokenizer);
-   await engine.resetChat();const response=await engine.chat.completions.create({messages:prompt.messages,temperature:0,max_tokens:512,response_format:responseFormat(data.payload.kind,data.payload.entry?.id),seed:0});
+   await engine.resetChat();const response=await engine.chat.completions.create({messages:prompt.messages,temperature:0,max_tokens:512,response_format:responseFormat(data.payload.kind,data.payload.kind==='merge'?data.payload.groups.map(group=>group.id):data.payload.entry?.id),seed:0});
    if(response.usage?.prompt_tokens!==prompt.promptTokens)throw new Error(`Tokenizer/runtime token counts differ (${prompt.promptTokens}/${response.usage?.prompt_tokens}).`);
    result={raw:response.choices[0].message.content,truncated:prompt.truncated,usage:response.usage};await engine.resetChat();
   }else if(data.type==='unload'){await engine?.unload();engine=null;tokenizer=null;result={unloaded:true};}

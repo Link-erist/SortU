@@ -3,7 +3,7 @@ import {safeSegment} from '../organizer/paths.js';
 import {acquireExportLock} from '../transfer/resources.js';
 import {createLocalRuntime} from './runtime.js';
 import {extractContent} from './extract.js';
-import {CATEGORIES,validateGuidance,validateSuggestion} from './schema.js';
+import {CATEGORIES,validateGuidance,validateMerges,validateSuggestion} from './schema.js';
 export const MODEL_ID='Qwen2.5-1.5B-Instruct-q4f16_1-MLC';
 // Spell near-matches of a preferred category the list's way (case, spacing, singular/plural); keep any other category as written.
 const categoryKey=value=>value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu,'').replace(/s$/,'');
@@ -11,6 +11,22 @@ const categoryKey=value=>value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu,'').repl
 const visibleText=value=>value.replace(/\p{Cf}/gu,'').replace(/\s+/g,' ').trim();
 const preferredCategory=(category,preferred)=>{const visible=visibleText(category)||'Other';return preferred.get(categoryKey(visible))||visible;};
 const modifiedDate=time=>Number.isFinite(time)?new Date(time).toISOString().slice(0,10):'';
+// Review step: the model sees only category/topic group summaries (never file names or content) and may join
+// near-duplicate topics in the same category. Any invalid or failed response leaves the topics unchanged.
+const MAX_MERGE_GROUPS=60;
+async function mergeTopics(runtime,suggestions,revision,check) {
+ const groups=[],byKey=new Map();
+ for(const suggestion of suggestions) {
+  if(!suggestion.sufficient||!suggestion.topic)continue;const key=suggestion.category+'\u0000'+suggestion.topic;
+  if(!byKey.has(key)){if(groups.length>=MAX_MERGE_GROUPS)continue;const group={id:`g${groups.length+1}`,category:suggestion.category,topic:suggestion.topic,count:0};groups.push(group);byKey.set(key,group);}
+  byKey.get(key).count++;
+ }
+ const categories=new Set(groups.map(group=>group.category));if(groups.length<2||categories.size===groups.length)return suggestions;
+ let target;try{target=validateMerges((await runtime.generate({kind:'merge',groups,revision})).raw,groups);}catch{check();return suggestions;}
+ check();const byId=new Map(groups.map(group=>[group.id,group]));
+ return suggestions.map(suggestion=>{const group=byKey.get(suggestion.category+'\u0000'+suggestion.topic),into=group&&byId.get(target.get(group.id));
+  return into?Object.freeze({...suggestion,topic:into.topic,reason:`${suggestion.reason} Grouped with ${into.topic}.`.slice(0,300)}):suggestion;});
+}
 export function createAiOrganizer({runtimeFactory=createLocalRuntime,extractor=extractContent}={}) {
  let active=null;
  return {
@@ -60,7 +76,8 @@ export function createAiOrganizer({runtimeFactory=createLocalRuntime,extractor=e
      const detail=String(content.evidence||'').replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,300),status=content.status;
      content=null;suggestions.push(suggestion);evidence.push({fileId:entry.id,kind,status,detail});
     }
-    check();return {suggestions,evidence,model:MODEL_ID,excludedIds:selection.excluded.map(item=>item.entry.id),guidance};
+    check();onProgress({stage:'Grouping related files'});const grouped=await mergeTopics(runtime,suggestions,revision,check);
+    check();return {suggestions:grouped,evidence,model:MODEL_ID,excludedIds:selection.excluded.map(item=>item.entry.id),guidance};
    }catch(error){
     // Shared resources (such as the export lock) word their own cancel errors; report this job's cancel consistently.
     if(controller.signal.aborted)throw new Error('AI analysis canceled.');throw error;
