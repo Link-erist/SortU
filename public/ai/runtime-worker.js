@@ -32,6 +32,16 @@ self.onmessage=async({data})=>{
  try {
   let result;
   if(data.type==='prepare'||data.type==='verifyOffline')result=await load(data.type==='verifyOffline',progress=>reply({type:'progress',progress}),data.type==='prepare'?data.payload?.files:undefined);
+  else if(data.type==='generate'&&data.payload?.kind==='assistant'){
+   if(!engine||!tokenizer)throw new Error('Prepare or load local AI first.');
+   // The master prompt and schema are built here from the assistant core; the page only sends data and the request.
+   const core=await import('../assistant/core.js'),{renderPrompt}=await import('./prompts.js');
+   const aliases=Array.isArray(data.payload.aliases)?data.payload.aliases.filter(alias=>/^f\d{1,3}$/.test(alias)):[];
+   const context={text:String(data.payload.contextText||'').slice(0,20000),aliases:new Map(aliases.map(alias=>[alias,alias]))},messages=core.buildMessages(context,String(data.payload.request||'').slice(0,core.MAX_MESSAGE));
+   const promptTokens=renderPrompt(messages).reduce((sum,part)=>sum+tokenizer.encode(part).ids.length,0);if(promptTokens>3456)throw new Error('This proposal is too large for the assistant. Ask about one folder at a time.');
+   await engine.resetChat();const response=await engine.chat.completions.create({messages,temperature:0,max_tokens:256,response_format:core.responseFormat(context),seed:0});
+   result={raw:response.choices[0].message.content,usage:response.usage};await engine.resetChat();
+  }
   else if(data.type==='generate'){
    if(!engine||!tokenizer)throw new Error('Prepare or load local AI first.');
    const {buildPrompt}=await import('./prompts.js');const prompt=buildPrompt(data.payload,tokenizer);

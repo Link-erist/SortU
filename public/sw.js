@@ -22,6 +22,8 @@ const APP_ASSETS = [
   '/vendor/TRANSCRIBE-LICENSES.txt',
   '/organizer/categories.js',
   '/organizer/tree.js',
+  '/assistant/core.js',
+  '/assistant/ask.js',
   '/vendor/inflate.js',
   '/ai/model.json',
   '/ai/organize.js',

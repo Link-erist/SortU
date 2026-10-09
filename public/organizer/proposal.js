@@ -70,6 +70,13 @@ export function createOrganizerSession() {
       proposal = finalize({...proposal, rows: proposal.rows.map(r => r.fileId === fileId ? {...r, targetPath: path, operation: 'edit', reason: 'Target edited by you.'} : r)});
       validateProposal(proposal, inputs.inventory); return proposal;
     },
+    // Several target edits at once (the assistant's Apply). Validated as a whole: on any error nothing changes.
+    editTargets(targets, reason = 'Target edited by you.') {
+      if (!proposal) throw new Error('Generate a proposal first.');
+      for (const fileId of targets.keys()) if (!proposal.rows.some(r => r.fileId === fileId && r.included)) throw new Error('Cannot edit an excluded or unknown file.');
+      const candidate = finalize({...proposal, rows: proposal.rows.map(r => targets.has(r.fileId) ? {...r, targetPath: targets.get(r.fileId), operation: 'edit', reason} : r)});
+      validateProposal(candidate, inputs.inventory); invalidate(); proposal = finalize(candidate); return proposal;
+    },
     approve() {
       if (!proposal || !inputs.guideResolved) throw new Error('Generate a current proposal first.');
       validateProposal(proposal, inputs.inventory); const ruleErrors = validateRules(proposal.rules); if (ruleErrors.length) throw new Error(ruleErrors.join(' '));

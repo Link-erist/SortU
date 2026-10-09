@@ -49,3 +49,7 @@ Branch: `feat/transcription` (continuing). Base: `27b74ae`. The design reference
 - **Model size:** a 1.5B model may misread requests. Strict validation, the preview, and Apply-only changes contain the damage. Results are measured and reported honestly.
 - **Large batches:** the proposal summary must fit about 3,400 tokens. With many files the assistant sees folder counts and truncated name lists, and says so.
 - **Rework:** the browser regression scripts depend on the current page structure and need updating.
+
+## Follow-up (user, 2026-10-10)
+
+- **Reorganize in place**, after the assistant: a third save option, "Reorganize this folder in place", for Chrome and Edge on computers and the portable app (not Android, whose browser cannot write folders). It lists every move for confirmation, checks for overwrites before starting, keeps an undo log, and offers "Restore original layout". Saving copies stays the default.
