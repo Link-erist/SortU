@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#2457e8">
+    <meta name="app-shell-version" content="v1">
+    <meta name="description" content="AppBuildersHackathon. A simple space for your next big idea.">
+    <title>AppBuildersHackathon</title>
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/icons/mark.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <div class="page">
+      <header class="header">
+        <a class="brand" href="/" aria-label="AppBuildersHackathon home">
+          <img src="/icons/mark.svg" alt="" width="36" height="36">
+          <span>AppBuilders</span>
+        </a>
+        <span class="edition">THE FIRST CHAPTER</span>
+      </header>
+
+      <main id="main">
+        <div class="hero">
+          <div class="hero-mark" aria-hidden="true">
+            <img src="/icons/mark.svg" alt="" width="84" height="84">
+          </div>
+          <p class="eyebrow">A SMALL START. A WORLD OF POSSIBILITIES.</p>
+          <h1>AppBuilders<wbr>Hackathon</h1>
+          <p class="welcome">Welcome to a simple space for your next big idea.<br class="desktop-break"> Let's build something worth opening.</p>
+          <div class="install-area">
+            <button id="install-button" type="button" hidden>
+              Install app <span aria-hidden="true">↗</span>
+            </button>
+            <p class="install-help">Make it yours. Install from your browser's app menu when available.</p>
+          </div>
+          <div class="status" role="status" aria-live="polite">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span id="app-status" data-state="pending">Your starting point</span>
+          </div>
+          <noscript><p class="noscript">Enable JavaScript for offline access and the install button.</p></noscript>
+        </div>
+      </main>
+
+      <footer class="footer">
+        <span>AppBuildersHackathon</span>
+        <span>One page. Plenty of potential.</span>
+      </footer>
+    </div>
+  </body>
+</html>
