@@ -34,4 +34,4 @@ Serve the production directory over localhost, check manifest fields and icon di
 
 ## Review state
 
-Approved by the user and implemented locally. See `docs/verification.md` for test evidence and remaining deployment/device checks. No remote publication has been performed.
+Approved by the user, implemented, committed to GitHub main, and deployed to Vercel. See `docs/verification.md` for evidence and remaining device checks.

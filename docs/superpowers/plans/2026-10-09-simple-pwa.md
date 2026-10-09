@@ -59,4 +59,4 @@ The plan covers the approved page, PWA behavior, file layout, deployment prepara
 
 ## Execution state
 
-Approved by the user for direct execution. Both implementation tasks are complete locally. All listed checks were performed or their tooling/device limitations were recorded in `docs/verification.md`. Tests pass 10/10. Independent review's update-coherence finding was reproduced and fixed. Remote publication and physical-device installation remain separate checks.
+Approved by the user for direct execution. Both implementation tasks are complete. All listed checks were performed or their tooling/device limitations were recorded in `docs/verification.md`. Tests pass 10/10. Independent review's update-coherence finding was reproduced and fixed. The user subsequently authorized commit, push, and Vercel setup; the app is published on GitHub main and deployed to Vercel. Physical-device installation remains unverified.

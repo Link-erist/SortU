@@ -2,6 +2,12 @@
 
 A simple one-page Progressive Web App. Plain HTML, CSS, and JavaScript with no production dependencies or build step.
 
+**Live app:** https://appbuildershackathon.vercel.app/
+
+**Vercel project:** https://vercel.com/link-erists-projects/appbuildershackathon
+
+The GitHub repository is linked to Vercel, with `main` as the production branch. Pushes to `main` automatically deploy updates.
+
 ## Preview locally
 
 Use Node.js 22 or newer. In PowerShell, from this repository:
@@ -26,7 +32,7 @@ The tests exercise installation UI behavior and the service worker's offline fal
 4. Deploy, then visit the generated **HTTPS** URL. Confirm the production branch in the project's Git settings is **main**.
 5. Once the GitHub integration is connected, pushes to the production branch deploy production updates; other branches and pull requests can produce previews. No GitHub Actions workflow or deployment token is needed.
 
-Local configuration does not connect your Vercel account to GitHub or publish this project. Complete the account import once. See [Vercel GitHub integration](https://vercel.com/docs/git/vercel-for-github) and [project configuration](https://vercel.com/docs/project-configuration).
+This project's account import is complete. The steps above are retained for recreating the setup elsewhere. Local configuration alone does not establish the account connection. See [Vercel GitHub integration](https://vercel.com/docs/git/vercel-for-github) and [project configuration](https://vercel.com/docs/project-configuration).
 
 ## Install on Windows or Android
 
@@ -61,4 +67,4 @@ See [MDN installability guidance](https://developer.mozilla.org/en-US/docs/Web/P
 
 ## Verification status
 
-Automated tests and local browser results are recorded after implementation in `docs/verification.md`. Public HTTPS deployment and installation on a physical Android device must be verified separately.
+Automated tests and browser results are recorded in `docs/verification.md`. The live HTTPS page loads with Available offline status. Native installation on Windows Chrome/Edge and physical Android devices still needs a device check.
