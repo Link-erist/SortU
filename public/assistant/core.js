@@ -9,7 +9,7 @@ export const NOT_FOUND="I couldn't find that in the selected files.";
 export const MAX_MESSAGE=500,MAX_REPLY=300,MAX_ACTIONS=5,MAX_ACTION_FILES=10,MAX_LISTED_FILES=60,MAX_LISTED_FOLDERS=80,MAX_DEPTH=3;
 
 // Words that show an organizing intent (English and common Tagalog/Taglish).
-const INTENT=/\b(organi[sz]e?|organi[sz]ing|sort|group|move|put|place|rename|name[ds]?|merge|combine|join|split|separate|folders?|subfolders?|files?|categor(y|ies)|why|where|which|explain|keep|together|arrange|date|year|month|type|project|subject|topic|label|instead|undo|ilipat|lipat|ayusin|pangalan|pagsamahin|ihiwalay|bakit|saan)\b/i;
+const INTENT=/\b(organi[sz]e?|organi[sz]ing|sort|group|move|put|place|rename|name[ds]?|merge|combine|join|split|separate|folders?|subfolders?|files?|categor(y|ies)|why|where|which|explain|keep|together|arrange|date|year|month|type|project|subject|topic|label|instead|undo|tidy|tidier|clean|cleaner|neat|neater|messy|reorgani[sz]e|simplify|simpler|fewer|declutter|ilipat|lipat|ayusin|pangalan|pagsamahin|ihiwalay|bakit|saan)\b/i;
 // Requests the assistant may never act on, answered with a specific pointer instead of the model.
 const FORBIDDEN=[
  [/\b(approve|export)\b|\bdownload (it|them|the (zip|files|copies))\b/i,"I can't approve or save. Review the proposal, then use Approve and the save buttons yourself."],
