@@ -3,9 +3,9 @@
 import {createRequire} from 'node:module';import {spawn,execFileSync} from 'node:child_process';import {mkdir,readdir,readFile,rm,stat} from 'node:fs/promises';import {existsSync} from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';
 const require=createRequire(import.meta.url),{chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const [zip,work]=process.argv.slice(2).map(value=>path.resolve(value));const tar=path.join(process.env.SystemRoot||'C:\\Windows','System32','tar.exe');
-const evidence={};const appDataMatches=async()=>{const found=[];for(const base of [process.env.LOCALAPPDATA,process.env.APPDATA])for(const name of await readdir(base))if(/aiorganizer|ai organizer|ai-organizer/i.test(name))found.push(path.join(base,name));return found;};
+const evidence={};const appDataMatches=async()=>{const found=[];for(const base of [process.env.LOCALAPPDATA,process.env.APPDATA])for(const name of await readdir(base))if(/aiorganizer|ai organizer|ai-organizer|sortu/i.test(name))found.push(path.join(base,name));return found;};
 await rm(work,{recursive:true,force:true});await mkdir(work,{recursive:true});execFileSync(tar,['-x','-f',zip,'-C',work]);
-const folder=path.join(work,(await readdir(work))[0]),exe=path.join(folder,'AI Organizer.exe');assert.ok(existsSync(exe));
+const folder=path.join(work,(await readdir(work))[0]),exe=path.join(folder,'SortU.exe');assert.ok(existsSync(exe));
 const before=await appDataMatches();
 const app=spawn(exe,[],{env:{...process.env,WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS:'--remote-debugging-port=9333'},stdio:'ignore'});
 let browser;
@@ -28,7 +28,7 @@ try {
   const decoded=await decodeAudio(new File([new Uint8Array(bytes)],'meeting.wav'));const runtime=createTranscribeRuntime();try{await runtime.verifyOffline();return (await runtime.generate({audio:decoded.audio,revision:'portable'})).text;}finally{runtime.dispose();}},wav);
  assert.match(evidence.transcription,/Atlas/i);
  evidence.externalRequests=external;evidence.pageErrors=errors;assert.deepEqual(external,[]);assert.deepEqual(errors,[]);
-} finally {await browser?.close().catch(()=>{});app.kill();try{execFileSync('taskkill',['/F','/T','/IM','AI Organizer.exe'],{stdio:'ignore'});}catch{}}
+} finally {await browser?.close().catch(()=>{});app.kill();try{execFileSync('taskkill',['/F','/T','/IM','SortU.exe'],{stdio:'ignore'});}catch{}}
 await new Promise(resolve=>setTimeout(resolve,3000));
 evidence.dataFolderCreated=existsSync(path.join(folder,'data'));
 let dataBytes=0;for(const entry of await readdir(path.join(folder,'data'),{recursive:true,withFileTypes:true}))if(entry.isFile())dataBytes+=(await stat(path.join(entry.parentPath,entry.name))).size;evidence.dataBytes=dataBytes;

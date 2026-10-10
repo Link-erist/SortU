@@ -1,4 +1,4 @@
-# Verification: AppBuildersHackathon
+# Verification: SortU
 
 ## Local AI Organizer, October 10, 2026
 
@@ -92,12 +92,12 @@ Advance `APP_VERSION` in `public/sw.js` and the paired HTML meta tag together wh
 
 ## Local state
 
-Implementation is committed and published on `main` in Link-erist/AppBuildersHackathon. The initial app commit is `f155eaa443905e7dd9995906b5c53c75a15dee8c`. The preview uses http://127.0.0.1:4173.
+Implementation is committed and published on `main` in Link-erist/SortU (formerly AppBuildersHackathon). The initial app commit is `f155eaa443905e7dd9995906b5c53c75a15dee8c`. The preview uses http://127.0.0.1:4173.
 
 ## Deployment
 
-Live site: https://appbuildershackathon.vercel.app/
+Live site: https://sortu-app.vercel.app/
 
-Dashboard: https://vercel.com/link-erists-projects/appbuildershackathon
+Dashboard: https://vercel.com/link-erists-projects/sortu-app
 
 Vercel imported the GitHub repository using Other, repository root, public output, and no build/install command. The production dashboard states that pushes to main update production. The connector's team-scoped operations returned 403, so setup was completed through the user's signed-in Vercel browser session. No connector access settings were changed.

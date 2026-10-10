@@ -61,7 +61,7 @@ test('offline navigation returns the installed page', async () => {
 
 test('online navigation returns fresh content, then caches it for offline reload', async () => {
   let offline = false;
-  const page = '<meta name="app-shell-version" content="v10">fresh page';
+  const page = '<meta name="app-shell-version" content="v11">fresh page';
   const sw = worker(async () => {
     if (offline) throw new Error('offline');
     return new Response(page);
@@ -77,7 +77,7 @@ test('an active worker keeps the old shell coherent while a new release waits', 
   let offline = false;
   const sw = worker(async () => {
     if (offline) throw new Error('offline');
-    return new Response('<meta name="app-shell-version" content="v11">new markup needing v11 assets');
+    return new Response('<meta name="app-shell-version" content="v12">new markup needing v12 assets');
   });
   await sw.lifecycle('install');
   assert.equal(await (await sw.request('/')).text(), 'cached /');
@@ -96,11 +96,11 @@ test('cached app assets remain available offline', async () => {
 
 test('activation deletes old app caches and preserves unrelated caches', async () => {
   const sw = worker();
-  sw.stores.set('appbuildershackathon-v0', new Map());
+  sw.stores.set('sortu-v0', new Map());
   sw.stores.set('another-app-v1', new Map());
   await sw.lifecycle('install');
   await sw.lifecycle('activate');
-  assert.equal(sw.stores.has('appbuildershackathon-v0'), false);
+  assert.equal(sw.stores.has('sortu-v0'), false);
   assert.equal(sw.stores.has('another-app-v1'), true);
   assert.equal(sw.stores.size, 2);
 });
@@ -111,7 +111,7 @@ test('worker leaves cross-origin requests and writes to the browser', async () =
   assert.equal(await sw.request('/', 'cors', 'POST'), undefined);
 });
 
-function app({ standalone = false, registrationFails = false, workerVersion = 'v10', waiting = null, controlled = true } = {}) {
+function app({ standalone = false, registrationFails = false, workerVersion = 'v11', waiting = null, controlled = true } = {}) {
   const handlers = new Map();
   const button = { hidden: true, disabled: false, addEventListener: (type, fn) => handlers.set(`button:${type}`, fn) };
   const status = { textContent: 'Getting ready', dataset: {} };
@@ -133,7 +133,7 @@ function app({ standalone = false, registrationFails = false, workerVersion = 'v
         ready: Promise.resolve({ active: { postMessage(_message, ports) { ports[0].postMessage({version: workerVersion}); } } })
       }
     },
-    document: { getElementById: (id) => elements[id], querySelector: () => ({content:'v10'}) },
+    document: { getElementById: (id) => elements[id], querySelector: () => ({content:'v11'}) },
     MessageChannel: class {
       constructor() {
         this.port1 = {onmessage: null, close() {}};

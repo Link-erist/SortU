@@ -1,4 +1,4 @@
-// Portable desktop shell for the AI Organizer PWA in ../../public.
+// Portable desktop shell for the SortU PWA in ../../public.
 // Everything it writes stays next to the executable: browser storage in data/, and the bundled model is read from model/.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -71,7 +71,7 @@ fn main() {
         })
         .setup(move |app| {
             WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
-                .title("AI Organizer")
+                .title("SortU")
                 .inner_size(1200.0, 860.0)
                 .data_directory(dir.join("data"))
                 .initialization_script(BOOTSTRAP)
@@ -79,5 +79,5 @@ fn main() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("failed to start AI Organizer");
+        .expect("failed to start SortU");
 }

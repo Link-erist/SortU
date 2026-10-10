@@ -11,7 +11,7 @@ async function openApp(context) {
  const page=await context.newPage(),errors=[],external=[];page.on('pageerror',error=>errors.push(error.message));
  page.on('request',request=>{const url=request.url();if(!url.startsWith('http://127.0.0.1:4173/')&&!url.startsWith('blob:')&&!url.startsWith('data:'))external.push(url);});
  await page.goto('http://127.0.0.1:4173/');
- await page.evaluate(async()=>{for(const registration of await navigator.serviceWorker.getRegistrations())await registration.unregister();for(const name of await caches.keys())if(name.startsWith('appbuildershackathon-'))await caches.delete(name);});
+ await page.evaluate(async()=>{for(const registration of await navigator.serviceWorker.getRegistrations())await registration.unregister();for(const name of await caches.keys())if(name.startsWith('sortu-'))await caches.delete(name);});
  await page.goto('about:blank');await page.goto('http://127.0.0.1:4173/');await page.waitForFunction(()=>document.getElementById('app-status').textContent==='Available offline');
  await context.setOffline(true);await page.reload();await page.locator('#tab-transcribe').click();
  await page.waitForFunction(()=>!['checking',undefined].includes(document.getElementById('transcribe-root').dataset.transcribeState));

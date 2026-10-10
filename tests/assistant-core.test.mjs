@@ -100,3 +100,11 @@ test('common phrasings move files next to an existing folder or file',async()=>{
  assert.deepEqual(targets('put the adobo recipe with the invoices'),['Invoices/adobo.md']);
  assert.equal(parseCommand('keep adobo with the spaceship',context,proposal),null);
 });
+test('vague tidy requests fold single-file subfolders at once instead of reaching the model',async()=>{
+ const {parseCommand}=await import('../public/assistant/core.js');const session=sample(),context=buildContext(session.proposal);
+ const result=parseCommand('Can you tidy these up a bit more?',context,session.proposal);
+ assert.match(result.reply,/fold 2 single-file subfolders/);assert.deepEqual(result.actions.map(a=>[a.from,a.to]),[['Projects/Atlas','Projects'],['Projects/Misc','Projects']]);
+ const preview=previewActions(session.proposal,context,result.actions);assert.deepEqual(preview.changes.map(c=>c.to).sort(),['Projects/notes.txt','Projects/plan.txt']);
+ const flat=proposalWith([['a.pdf','Invoices/a.pdf'],['b.md','Recipes/b.md']]),flatContext=buildContext(flat.proposal);
+ const none=parseCommand('make it cleaner',flatContext,flat.proposal);assert.deepEqual(none.actions,[]);assert.match(none.reply,/merge Invoices into Recipes/);
+});

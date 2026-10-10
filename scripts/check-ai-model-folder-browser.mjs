@@ -6,7 +6,7 @@ const folder='work/model-folder',evidence={};
 async function openApp(profile,channel) {
  const context=await chromium.launchPersistentContext(profile,{channel,headless:true}),page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));
  await page.goto('http://127.0.0.1:4173/');
- await page.evaluate(async()=>{for(const registration of await navigator.serviceWorker.getRegistrations())await registration.unregister();for(const name of await caches.keys())if(name.startsWith('appbuildershackathon-'))await caches.delete(name);});
+ await page.evaluate(async()=>{for(const registration of await navigator.serviceWorker.getRegistrations())await registration.unregister();for(const name of await caches.keys())if(name.startsWith('sortu-'))await caches.delete(name);});
  await page.goto('about:blank');await page.goto('http://127.0.0.1:4173/');await page.waitForFunction(()=>document.getElementById('app-status').textContent==='Available offline');
  await context.setOffline(true);return {context,page,errors};
 }

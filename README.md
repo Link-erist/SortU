@@ -1,10 +1,10 @@
-# AppBuildersHackathon
+# SortU
 
 A Progressive Web App centered on private file organization, with browser-only LAN file transfer as a secondary workspace. Plain HTML, CSS, and JavaScript with locally bundled ZIP, QR, and hashing libraries. Deployment needs no build step or runtime CDN.
 
-**Live app:** https://appbuildershackathon.vercel.app/
+**Live app:** https://sortu-app.vercel.app/
 
-**Vercel project:** https://vercel.com/link-erists-projects/appbuildershackathon
+**Vercel project:** https://vercel.com/link-erists-projects/sortu-app
 
 The GitHub repository is linked to Vercel, with `main` as the production branch. Pushes to `main` automatically deploy updates.
 
@@ -26,7 +26,7 @@ The tests exercise organizer rules, safe proposals, approval invalidation, exclu
 
 ## Deploy to Vercel with GitHub
 
-1. Commit and push the project to [Link-erist/AppBuildersHackathon](https://github.com/Link-erist/AppBuildersHackathon). Use `main` as the production branch once the code is ready there.
+1. Commit and push the project to [Link-erist/SortU](https://github.com/Link-erist/SortU). Use `main` as the production branch once the code is ready there.
 2. Sign in to [Vercel](https://vercel.com/new) and import that GitHub repository. If it is missing, grant the Vercel GitHub integration access to this repository.
 3. Choose **Other** for Framework Preset, repository root for Root Directory, no Build Command, and **public** for Output Directory. `vercel.json` already supplies these static-site settings; no environment variables are required.
 4. Deploy, then visit the generated **HTTPS** URL. Confirm the production branch in the project's Git settings is **main**.
@@ -69,6 +69,9 @@ This feature branch implements rules-based organization and renaming of exported
    Unsupported prose or conflicting guides block the proposal. **Use automatic settings and ignore guides** explicitly bypasses guide instructions and resets manual settings. Manually excluded files stay excluded. Manually changed controls override matching guide directives and are identified in the active rules summary. Exclusion patterns support `*` and `?`, at most 20 patterns of 256 characters each.
 4. Generate a proposal, review the original and proposed paths, edit if needed, and explicitly approve. Changes to selection, settings, instructions, or target paths invalidate approval. Unsafe Windows paths, collisions, and file/directory conflicts block approval. Automatic collisions receive deterministic keep-both suffixes.
 5. Download a ZIP, or on browsers exposing folder-writing support choose a parent folder. Folder export creates a new `Organized-<date>-<uuid>` subfolder, copies bytes, and independently rereads and verifies each saved file. Originals are not moved, rewritten, or deleted. A failure reports the partial output folder instead of deleting it. ZIP export reports **download requested** because the app cannot confirm browser saving finished.
+6. Or choose **Reorganize this folder in place** (Chrome and Edge on computers, and the portable app; not Android, where the browser cannot write to folders). Pick the folder the files came from. Before anything changes, SortU checks that every selected file is still there and unchanged and that no proposed path is already taken, then lists every move for you to confirm. Each file is copied, re-read and checked, and only then is the original removed; folders left empty are removed too. `SortU-restore-log.json` is written in the folder first and updated after each move, so **Restore original layout** can move everything back, even after a reload (choose the same folder). Saving copies stays the default.
+
+The **Proposed changes** panel shows **Before** (original paths) and **After** (the new folder tree with file counts) side by side. Select a file on either side to highlight it on both.
 
 ZIP output is capped at **64 MiB including archive overhead and the organization report**. The conservative admission estimate can reject a selection slightly below that ceiling. Folder export streams files sequentially and has no app-wide byte cap, subject to browser permissions and disk capacity. Both export modes read in 32 KiB chunks. The report includes metadata, rules, excluded paths, and SHA-256 checksums, with a 512 KiB report cap. It does not include guide text or file contents.
 

@@ -2,16 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0f1420"><meta name="app-shell-version" content="v10">
+  <meta name="theme-color" content="#0f1420"><meta name="app-shell-version" content="v11">
   <meta name="description" content="Organize selected files privately and export approved copies offline.">
-  <title>AppBuildersHackathon</title>
+  <title>SortU</title>
   <link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icons/mark.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icons/icon-192.png"><link rel="stylesheet" href="/styles.css"><script src="/theme-init.js"></script>
   <script src="/app.js" defer></script><script type="module" src="/transfer-entry.js"></script>
 </head>
 <body><div id="app-shell" class="app-shell" data-menu="closed">
   <aside class="sidebar" aria-label="App">
-    <div class="sidebar-top"><a class="brand" href="/" aria-label="AppBuildersHackathon home"><img src="/icons/mark.svg" alt="" width="32" height="32"><span>AppBuildersHackathon</span></a><button id="menu-toggle" class="menu-toggle secondary" type="button" aria-controls="sidebar-panel" aria-expanded="false">Menu</button></div>
+    <div class="sidebar-top"><a class="brand" href="/" aria-label="SortU home"><img src="/icons/mark.svg" alt="" width="32" height="32"><span>SortU</span></a><button id="menu-toggle" class="menu-toggle secondary" type="button" aria-controls="sidebar-panel" aria-expanded="false">Menu</button></div>
     <div id="sidebar-panel" class="sidebar-panel">
       <nav class="sidebar-nav" aria-label="Pages"><button id="tab-home" type="button" aria-current="page">Home</button><button id="tab-organize" type="button">Organization</button><button id="tab-transcribe" type="button">Transcription</button><button id="tab-transfer" type="button">Transfer</button></nav>
       <div class="sidebar-bottom"><nav class="sidebar-nav" aria-label="Settings"><button id="tab-settings" type="button">Settings</button></nav><p class="compat-chip"><span id="compat-dot" class="compat-dot" aria-hidden="true"></span><span id="compat-label">Checking this device…</span></p><div class="status" role="status"><span class="status-dot" aria-hidden="true"></span><span id="app-status" data-state="pending">Preparing offline access</span></div><button id="install-button" class="install-button" type="button" hidden>Install app</button></div>
@@ -27,9 +27,10 @@
     <div class="feature-grid"><article class="feature-card"><h2>Organization</h2><p class="help">Upload files or a folder, choose File type, Date or Content, and review proposed folders and names before saving organized copies.</p><button type="button" data-go="organize">Open Organization</button></article><article class="feature-card"><h2>Transcription</h2><p class="help">Turn audio and video into text, SRT or VTT transcripts with timestamps, on this device.</p><button type="button" data-go="transcribe">Open Transcription</button></article><article class="feature-card"><h2>Transfer</h2><p class="help">Send files to another device over your Wi-Fi, even with the internet off.</p><button type="button" data-go="transfer">Open Transfer</button></article><article class="feature-card"><h2>Settings</h2><p class="help">Prepare or remove the AI models, edit folder categories, and switch between dark and light themes.</p><button type="button" data-go="settings">Open Settings</button></article></div>
   </section>
   <section id="organizer-root" class="transfer-root organizer-page" aria-labelledby="organizer-title">
-    <div class="transfer-heading"><p class="eyebrow">ORGANIZATION</p><h1 id="organizer-title">Organize files</h1><p class="help"><span id="analysis-badge" class="badge">Local AI</span> Runs on this device. Originals are never changed: you save organized copies.</p></div>
+    <div class="transfer-heading"><p class="eyebrow">ORGANIZATION</p><h1 id="organizer-title">Organize files</h1><p class="help"><span id="analysis-badge" class="badge">Local AI</span> Runs on this device. Originals stay as they are unless you choose Reorganize in place.</p></div>
     <section class="transfer-card organizer-gate"><h2>Set up the organizer</h2><p id="organizer-gate-message" class="help">Checking this device for Local AI…</p><div class="button-row"><button type="button" data-go="settings">Open Settings</button></div></section>
     <select id="ai-mode" hidden aria-hidden="true" tabindex="-1"><option value="rules">Basic organization</option><option value="local">Local AI</option></select>
+    <dialog id="inplace-review" class="inplace-review" aria-labelledby="inplace-review-title"><h2 id="inplace-review-title"></h2><p id="inplace-review-summary" class="help"></p><ul id="inplace-review-problems" class="problem-list"></ul><ol id="inplace-review-moves" class="move-list"></ol><div class="button-row"><button id="inplace-confirm" type="button"></button><button id="inplace-cancel" type="button" class="secondary">Cancel</button></div></dialog>
     <dialog id="guide-review" aria-labelledby="guide-review-title"><h2 id="guide-review-title">Confirm guide exclusions</h2><p id="guide-review-summary" class="help"></p><div id="guide-review-files" class="file-checklist"></div><div class="button-row"><button id="confirm-guide" type="button">Confirm included files</button><button id="cancel-guide" type="button" class="secondary">Cancel analysis</button></div></dialog>
     <div class="organizer-layout organizer-step">
       <div class="organizer-main">
@@ -61,11 +62,12 @@ Exclude: *.tmp, private*</pre>
           <p class="help">History is saved in this browser and includes file and folder names. Clear removes it.</p></section>
       </div>
       <section class="transfer-card proposal-panel" aria-labelledby="proposal-title"><h2 id="proposal-title">Proposed changes</h2>
-        <p id="proposal-empty" class="help">Proposed folders and names appear here after you click Organize. Nothing is changed until you save copies.</p>
-        <div id="proposal-area" hidden><p id="proposal-summary" class="help"></p><div id="assistant-preview" class="assistant-preview" hidden><h3>Assistant suggestion</h3><ul id="assistant-preview-summary"></ul><details><summary>Files that would move</summary><ul id="assistant-preview-list" class="preview-list"></ul></details><p id="assistant-preview-rejected" class="help"></p><div class="button-row"><button id="assistant-apply" type="button">Apply</button><button id="assistant-discard" type="button" class="secondary">Discard</button></div><p class="help">Nothing changes until you click Apply. Applying cancels approval.</p></div><div id="proposal-tree" class="tree-view"></div>
+        <p id="proposal-empty" class="help">Proposed folders and names appear here after you click Organize. Nothing changes until you save or reorganize.</p>
+        <div id="proposal-area" hidden><p id="proposal-summary" class="help"></p><div id="assistant-preview" class="assistant-preview" hidden><h3>Assistant suggestion</h3><ul id="assistant-preview-summary"></ul><details><summary>Files that would move</summary><ul id="assistant-preview-list" class="preview-list"></ul></details><p id="assistant-preview-rejected" class="help"></p><div class="button-row"><button id="assistant-apply" type="button">Apply</button><button id="assistant-discard" type="button" class="secondary">Discard</button></div><p class="help">Nothing changes until you click Apply. Applying cancels approval.</p></div><div class="compare"><div class="compare-inner"><div class="compare-col"><h3>Before</h3><ul id="proposal-before" class="before-list"></ul></div><div class="compare-col"><h3>After</h3><div id="proposal-tree" class="tree-view"></div></div></div></div><p class="help">Select a file on either side to see where it goes.</p>
           <details><summary>Edit individual paths</summary><div id="proposal-list"></div></details>
-          <div class="button-row"><button id="approve-proposal" type="button">Approve</button></div><p class="help">Editing a path or setting cancels approval. No original files are renamed or moved.</p></div>
-        <div class="export-box"><h3>Save organized copies</h3><p id="folder-support" class="help"></p><div class="button-row"><button id="export-zip" type="button" disabled>Download ZIP</button><button id="export-folder" type="button" class="secondary" disabled>Save to new folder</button><button id="cancel-export" type="button" class="secondary" hidden>Cancel export</button></div><p class="help">ZIP exports are limited to 64 MiB. A report lists original and new paths, exclusions, rules and checksums. Wait for downloads to finish before clearing the selection.</p></div>
+          <div class="button-row"><button id="approve-proposal" type="button">Approve</button></div><p class="help">Editing a path or setting cancels approval. Nothing changes on disk until you save or reorganize.</p></div>
+        <div class="export-box"><h3>Save organized copies</h3><p id="folder-support" class="help"></p><div class="button-row"><button id="export-zip" type="button" disabled>Download ZIP</button><button id="export-folder" type="button" class="secondary" disabled>Save to new folder</button><button id="cancel-export" type="button" class="secondary" hidden>Cancel export</button></div><p class="help">ZIP exports are limited to 64 MiB. A report lists original and new paths, exclusions, rules and checksums. Wait for downloads to finish before clearing the selection.</p>
+          <div id="inplace-box" class="inplace-box" hidden><h3>Or reorganize the original folder</h3><p class="help">Moves and renames the original files inside the folder you choose. You review every move first, and a restore log saved in that folder lets you undo it.</p><div class="button-row"><button id="reorganize-in-place" type="button" class="secondary" disabled>Reorganize this folder in place</button><button id="restore-layout" type="button" class="secondary">Restore original layout</button></div></div></div>
       </section>
     </div>
     <p id="organizer-status" class="transfer-status" role="status" aria-live="polite">Choose files to begin. No instructions are required.</p>
@@ -103,6 +105,6 @@ Exclude: *.tmp, private*</pre>
     <section class="transfer-card" id="category-editor"><h2>Folder categories</h2><p class="help">The AI prefers these folder names, one per line. "Other" is always kept for files it cannot classify.</p><label for="category-list">Categories</label><textarea id="category-list" rows="8" spellcheck="false"></textarea><div class="button-row"><button id="save-categories" type="button" class="secondary">Save categories</button><button id="reset-categories" type="button" class="secondary">Reset to defaults</button></div><p id="category-status" class="help" role="status" aria-live="polite"></p></section>
     <section class="transfer-card"><h2>Storage</h2><p id="storage-usage" class="help">Checking storage use…</p></section>
   </section></main>
-    <footer class="footer"><span>AppBuildersHackathon</span><span>No account. No cloud file relay.</span></footer>
+    <footer class="footer"><span>SortU</span><span>No account. No cloud file relay.</span></footer>
   </div>
 </div></body></html>

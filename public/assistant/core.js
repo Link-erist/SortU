@@ -150,7 +150,19 @@ export function parseCommand(text,context,proposal) {
   const rows=files.aliases.slice(0,3).map(a=>proposal.rows.find(row=>row.fileId===context.aliases.get(a)));
   return {reply:rows.map(row=>`${baseOf(row.targetPath)} is in ${folderOf(row.targetPath)||'the top folder'}. ${row.reason}`).join(' ').slice(0,MAX_REPLY),actions:[]};
  }
+ if(VAGUE.test(t))return tidy(context);
  return null;
+}
+// Vague requests ("tidy these up", "fewer folders"). The small model tends to refuse these, so rules answer:
+// subfolders holding a single file fold into their parent. With nothing to fold, the reply gives concrete examples.
+const VAGUE=/\b(tidy|tidier|clean(?:er)?|neat(?:er)?|messy|simplif(?:y|ied)|simpler|fewer|less folders|declutter|ayusin|linisin)\b/i;
+function tidy(context) {
+ const lone=context.folders.filter(folder=>folder.includes('/')&&context.counts.get(folder)===1&&!context.folders.some(other=>other.startsWith(folder+'/')));
+ const actions=lone.slice(0,MAX_ACTIONS).map(folder=>({type:'mergeFolders',files:[],from:folder,to:folderOf(folder)}));
+ if(actions.length)return {reply:`Proposed: fold ${plural(actions.length,'single-file subfolder')} into ${actions.length===1?'its parent folder':'their parent folders'}. Review it, then click Apply.`,actions};
+ const [first,second]=context.folders.filter(folder=>!folder.includes('/'));
+ const example=first&&second?`"merge ${first} into ${second}", "rename ${first} to …"`:first?`"rename ${first} to …"`:'"move a file to a folder"';
+ return {reply:`This layout is already compact. Tell me exactly what to change, for example ${example}, or "keep X with Y".`.slice(0,MAX_REPLY),actions:[]};
 }
 // Model replies that refuse or say "not found" never carry actions.
 export function settleModelResponse(parsed) {

@@ -1,6 +1,6 @@
 // Increment APP_VERSION and the matching index.html meta tag together for each release.
-const APP_VERSION = 'v10';
-const CACHE_PREFIX = 'appbuildershackathon-';
+const APP_VERSION = 'v11';
+const CACHE_PREFIX = 'sortu-';
 const CACHE_NAME = `${CACHE_PREFIX}${APP_VERSION}`;
 const APP_ASSETS = [
   '/theme-init.js',
@@ -22,6 +22,7 @@ const APP_ASSETS = [
   '/vendor/TRANSCRIBE-LICENSES.txt',
   '/organizer/categories.js',
   '/organizer/tree.js',
+  '/organizer/inplace.js',
   '/assistant/core.js',
   '/assistant/ask.js',
   '/assistant/ui.js',
