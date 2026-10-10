@@ -16,7 +16,7 @@ async function send(text,timeout=240000) {
 }
 try {
  await page.goto('http://127.0.0.1:4173/');
- await page.evaluate(async()=>{for(const registration of await navigator.serviceWorker.getRegistrations())await registration.unregister();for(const name of await caches.keys())if(name.startsWith('appbuildershackathon-'))await caches.delete(name);localStorage.removeItem('organizer-assistant-history');});
+ await page.evaluate(async()=>{for(const registration of await navigator.serviceWorker.getRegistrations())await registration.unregister();for(const name of await caches.keys())if(name.startsWith('sortu-'))await caches.delete(name);localStorage.removeItem('organizer-assistant-history');});
  await page.reload();await page.locator('#tab-organize').click();
  await page.waitForFunction(()=>document.getElementById('organizer-root').dataset.aiState==='ready',{},{timeout:120000});
  assert.equal(await page.locator('input[name="organize-by"][value="content"]').isChecked(),true);

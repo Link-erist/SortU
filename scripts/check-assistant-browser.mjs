@@ -24,7 +24,7 @@ const cases=[
 try {
  await page.goto('http://127.0.0.1:4173/');
  // Start from the current app files, not an older offline copy.
- await page.evaluate(async()=>{for(const registration of await navigator.serviceWorker.getRegistrations())await registration.unregister();for(const name of await caches.keys())if(name.startsWith('appbuildershackathon-'))await caches.delete(name);});await page.reload();
+ await page.evaluate(async()=>{for(const registration of await navigator.serviceWorker.getRegistrations())await registration.unregister();for(const name of await caches.keys())if(name.startsWith('sortu-'))await caches.delete(name);});await page.reload();
  await page.waitForFunction(()=>document.getElementById('organizer-root').dataset.aiState==='ready',{},{timeout:120000});
  const results=await page.evaluate(async cases=>{
   const {createInventory}=await import('/organizer/inventory.js'),{createOrganizerSession}=await import('/organizer/proposal.js'),{createLocalRuntime}=await import('/ai/runtime.js'),{askAssistant}=await import('/assistant/ask.js');

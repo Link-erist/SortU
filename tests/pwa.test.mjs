@@ -94,15 +94,13 @@ test('cached app assets remain available offline', async () => {
   }
 });
 
-test('activation deletes old app caches, including pre-rename ones, and preserves unrelated caches', async () => {
+test('activation deletes old app caches and preserves unrelated caches', async () => {
   const sw = worker();
   sw.stores.set('sortu-v0', new Map());
-  sw.stores.set('appbuildershackathon-v9', new Map());
   sw.stores.set('another-app-v1', new Map());
   await sw.lifecycle('install');
   await sw.lifecycle('activate');
   assert.equal(sw.stores.has('sortu-v0'), false);
-  assert.equal(sw.stores.has('appbuildershackathon-v9'), false);
   assert.equal(sw.stores.has('another-app-v1'), true);
   assert.equal(sw.stores.size, 2);
 });

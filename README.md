@@ -2,9 +2,9 @@
 
 A Progressive Web App centered on private file organization, with browser-only LAN file transfer as a secondary workspace. Plain HTML, CSS, and JavaScript with locally bundled ZIP, QR, and hashing libraries. Deployment needs no build step or runtime CDN.
 
-**Live app:** https://appbuildershackathon.vercel.app/
+**Live app:** https://sortu-app.vercel.app/
 
-**Vercel project:** https://vercel.com/link-erists-projects/appbuildershackathon
+**Vercel project:** https://vercel.com/link-erists-projects/sortu-app
 
 The GitHub repository is linked to Vercel, with `main` as the production branch. Pushes to `main` automatically deploy updates.
 
