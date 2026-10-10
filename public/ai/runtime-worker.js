@@ -4,6 +4,7 @@ import {createModelTransport} from './transport.js';
 import {checkAiCapabilities} from './capabilities.js';
 import {responseFormat} from './schema.js';
 import {checkFolderMarker,folderFetcher} from './model-folder.js';
+import {completeWithRecovery} from './recover.js';
 let engine=null,tokenizer=null,manifest=null,busy=false;
 const nativeFetch=globalThis.fetch.bind(globalThis),nativeOpen=caches.open.bind(caches);
 async function load(offline,progress,files) {
@@ -23,10 +24,11 @@ async function load(offline,progress,files) {
  engine=new MLCEngine({appConfig:{model_list:[model],cacheBackend:'cache'},initProgressCallback:p=>progress({stage:p.text,progress:p.progress}),logLevel:'ERROR'});
  await engine.reload(manifest.modelId,{context_window_size:4096});
  tokenizer=new Tokenizer(await(await transport.fetch(manifest.modelBase+'tokenizer.json')).json(),await(await transport.fetch(manifest.modelBase+'tokenizer_config.json')).json());
- const response=await engine.chat.completions.create({messages:[{role:'user',content:'Reply with the JSON object {"ok":true} only.'}],temperature:0,max_tokens:32,response_format:responseFormat('warmup')});
+ const response=await complete({messages:[{role:'user',content:'Reply with the JSON object {"ok":true} only.'}],temperature:0,max_tokens:32,response_format:responseFormat('warmup')});
  if(JSON.parse(response.choices[0].message.content).ok!==true)throw new Error('Model warmup did not produce the expected JSON.');await engine.resetChat();
  return {ready:true,offlineVerified:offline,modelId:manifest.modelId,bytes:manifest.totalBytes,downloadedBytes:preparation.bytes,capabilities:caps};
 }
+const complete=request=>completeWithRecovery(engine,()=>engine.reload(manifest.modelId,{context_window_size:4096}),request);
 self.onmessage=async({data})=>{
  if(data?.v!==1||busy)return;busy=true;const reply=(value)=>self.postMessage({v:1,id:data.id,revision:data.revision,...value});
  try {
@@ -39,13 +41,13 @@ self.onmessage=async({data})=>{
    const aliases=Array.isArray(data.payload.aliases)?data.payload.aliases.filter(alias=>/^f\d{1,3}$/.test(alias)):[];
    const context={text:String(data.payload.contextText||'').slice(0,20000),aliases:new Map(aliases.map(alias=>[alias,alias]))},messages=core.buildMessages(context,String(data.payload.request||'').slice(0,core.MAX_MESSAGE));
    const promptTokens=renderPrompt(messages).reduce((sum,part)=>sum+tokenizer.encode(part).ids.length,0);if(promptTokens>3456)throw new Error('This proposal is too large for the assistant. Ask about one folder at a time.');
-   await engine.resetChat();const response=await engine.chat.completions.create({messages,temperature:0,max_tokens:256,response_format:core.responseFormat(context),seed:0});
+   const response=await complete({messages,temperature:0,max_tokens:256,response_format:core.responseFormat(context),seed:0});
    result={raw:response.choices[0].message.content,usage:response.usage};await engine.resetChat();
   }
   else if(data.type==='generate'){
    if(!engine||!tokenizer)throw new Error('Prepare or load local AI first.');
    const {buildPrompt}=await import('./prompts.js');const prompt=buildPrompt(data.payload,tokenizer);
-   await engine.resetChat();const response=await engine.chat.completions.create({messages:prompt.messages,temperature:0,max_tokens:512,response_format:responseFormat(data.payload.kind,data.payload.kind==='merge'?data.payload.groups.map(group=>group.id):data.payload.entry?.id),seed:0});
+   const response=await complete({messages:prompt.messages,temperature:0,max_tokens:512,response_format:responseFormat(data.payload.kind,data.payload.kind==='merge'?data.payload.groups.map(group=>group.id):data.payload.entry?.id),seed:0});
    if(response.usage?.prompt_tokens!==prompt.promptTokens)throw new Error(`Tokenizer/runtime token counts differ (${prompt.promptTokens}/${response.usage?.prompt_tokens}).`);
    result={raw:response.choices[0].message.content,truncated:prompt.truncated,usage:response.usage};await engine.resetChat();
   }else if(data.type==='unload'){await engine?.unload();engine=null;tokenizer=null;result={unloaded:true};}
