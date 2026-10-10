@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "AppBuildersHackathon",
-  "short_name": "AppBuildersHackathon",
-  "description": "A simple space for your next big idea.",
+  "name": "SortU",
+  "short_name": "SortU",
+  "description": "Organize, transcribe and share files privately, on this device.",
   "lang": "en",
   "start_url": "/",
   "scope": "/",

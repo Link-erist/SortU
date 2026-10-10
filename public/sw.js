@@ -1,6 +1,8 @@
 // Increment APP_VERSION and the matching index.html meta tag together for each release.
-const APP_VERSION = 'v10';
-const CACHE_PREFIX = 'appbuildershackathon-';
+const APP_VERSION = 'v11';
+const CACHE_PREFIX = 'sortu-';
+// Caches from before the SortU rename are removed on activation too.
+const LEGACY_PREFIXES = ['appbuildershackathon-'];
 const CACHE_NAME = `${CACHE_PREFIX}${APP_VERSION}`;
 const APP_ASSETS = [
   '/theme-init.js',
@@ -22,6 +24,7 @@ const APP_ASSETS = [
   '/vendor/TRANSCRIBE-LICENSES.txt',
   '/organizer/categories.js',
   '/organizer/tree.js',
+  '/organizer/inplace.js',
   '/assistant/core.js',
   '/assistant/ask.js',
   '/assistant/ui.js',
@@ -262,7 +265,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const names = await caches.keys();
     await Promise.all(names
-      .filter((name) => name.startsWith(CACHE_PREFIX) && name !== CACHE_NAME)
+      .filter((name) => [CACHE_PREFIX, ...LEGACY_PREFIXES].some((prefix) => name.startsWith(prefix)) && name !== CACHE_NAME)
       .map((name) => caches.delete(name)));
     await self.clients.claim();
   })());

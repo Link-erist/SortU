@@ -1,4 +1,4 @@
-// Builds the portable ZIP: AI Organizer.exe + model/ + transcribe-model/ (saved model folders) + README.txt.
+// Builds the portable ZIP: SortU.exe + model/ + transcribe-model/ (saved model folders) + README.txt.
 // Usage: node desktop/scripts/package-portable.mjs [organizerModelFolder] [transcribeModelFolder]
 //        (defaults: work/model-folder and work/transcribe-model-folder; scripts/save-model-folder.mjs creates them)
 // Run `cargo tauri build --no-bundle` in desktop/src-tauri first.
@@ -23,12 +23,12 @@ async function verifyFolder({source,manifest:manifestPath}) {
  }
 }
 for(const bundle of bundles)await verifyFolder(bundle);
-const exe=path.join(repo,'desktop/src-tauri/target/release/ai-organizer.exe'),name=`AI-Organizer-portable-${config.version}`,dist=path.join(repo,'desktop/dist'),out=path.join(dist,name);
+const exe=path.join(repo,'desktop/src-tauri/target/release/sortu.exe'),name=`SortU-portable-${config.version}`,dist=path.join(repo,'desktop/dist'),out=path.join(dist,name);
 await rm(out,{recursive:true,force:true});await mkdir(out,{recursive:true});
-await cp(exe,path.join(out,'AI Organizer.exe'));for(const bundle of bundles)await cp(bundle.source,path.join(out,bundle.target),{recursive:true});
-await writeFile(path.join(out,'README.txt'),`AI Organizer ${config.version} (portable)
+await cp(exe,path.join(out,'SortU.exe'));for(const bundle of bundles)await cp(bundle.source,path.join(out,bundle.target),{recursive:true});
+await writeFile(path.join(out,'README.txt'),`SortU ${config.version} (portable)
 
-Run "AI Organizer.exe". Nothing is installed:
+Run "SortU.exe". Nothing is installed:
 - The app keeps its data in the "data" folder created next to it.
 - "model" holds the Local AI organizer model (Qwen2.5-1.5B, about 885 MB) and "transcribe-model" holds the
   transcription model (Whisper Small, about 440 MB). On first launch the app copies them into its data folder and

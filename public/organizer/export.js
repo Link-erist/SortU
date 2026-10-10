@@ -17,7 +17,8 @@ async function chunks(file, signal, consume) {
     await consume(bytes);
   }
 }
-async function verifiedCopy(file, handle, signal) {
+// Writes file to handle, then re-reads the saved bytes and checks them against the source checksum.
+export async function verifiedCopy(file, handle, signal) {
   const hash=createHasher(); let writer;
   try {
     writer=await handle.createWritable();

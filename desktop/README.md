@@ -1,6 +1,6 @@
 # Portable desktop app
 
-A portable Windows build of the AI Organizer PWA, made with Tauri 2. It is kept separate from the PWA:
+A portable Windows build of the SortU PWA, made with Tauri 2. It is kept separate from the PWA:
 
 - `public/` is the PWA and contains no desktop code. The desktop app shows those same files unchanged.
 - `desktop/` holds everything desktop-only:
@@ -16,13 +16,13 @@ You need Rust (MSVC toolchain) and `cargo install tauri-cli --version "^2" --loc
 2. Build the exe: `cd desktop/src-tauri` then `cargo tauri build --no-bundle`.
 3. Package: from the repo root, `node desktop/scripts/package-portable.mjs [organizerModelFolder] [transcribeModelFolder]`.
 
-The script checks every model file against the pinned sizes and hashes in `public/ai/model.json` before zipping. The output is `desktop/dist/AI-Organizer-portable-<version>.zip` (git-ignored). Publish it as a GitHub Release asset; it is too large for the website host.
+The script checks every model file against the pinned sizes and hashes in `public/ai/model.json` before zipping. The output is `desktop/dist/SortU-portable-<version>.zip` (git-ignored). Publish it as a GitHub Release asset; it is too large for the website host.
 
 ## ZIP layout
 
 ```
-AI-Organizer-portable-<version>/
-  AI Organizer.exe
+SortU-portable-<version>/
+  SortU.exe
   README.txt
   model/              saved organizer model folder (ai-organizer-model.json, model/, library/)
   transcribe-model/   saved transcription model folder (same layout)

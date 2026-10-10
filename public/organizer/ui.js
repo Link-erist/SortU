@@ -8,17 +8,19 @@ import {MODEL_ID} from '../ai/organize.js';
 import {sha256} from '../vendor/sha256.js';
 import {folderTree,renderTree} from './tree.js';
 import {mountAssistant} from '../assistant/ui.js';
+import {planInPlace,applyInPlace,readRestoreLog,planRestore,restoreInPlace,RESTORE_LOG} from './inplace.js';
 
 export function mountOrganizer(root,{settingsRoot}={}) {
   // Model controls live on the Settings page; everything else is inside this page.
   const $=selector=>root.querySelector(selector)||settingsRoot?.querySelector(selector), session=createOrganizerSession(), removers=[];
-  let inventory=null, excluded=new Set(), controls={}, readme='', automatic=false, permit=null, job=null, closed=false, guideEpoch=0, guidePending=false, guideError='',aiControls,assistant,assistantBusy=false;
+  let restoreRoot=null, inventory=null, excluded=new Set(), controls={}, readme='', automatic=false, permit=null, job=null, closed=false, guideEpoch=0, guidePending=false, guideError='',aiControls,assistant,assistantBusy=false;
   const status=(message,error=false)=>{ $('#organizer-status').textContent=message;$('#organizer-status').dataset.state=error?'error':'ready';};
   const listen=(selector,event,handler)=>{const element=$(selector);element.addEventListener(event,handler);removers.push(()=>element.removeEventListener(event,handler));};
   function buttons() {
     assistant?.sync();
     $('#approve-proposal').disabled=!!job||!session.proposal;
     $('#export-zip').disabled=!!job||!permit;$('#export-folder').disabled=!!job||!permit;
+    $('#reorganize-in-place').disabled=!!job||!permit;$('#restore-layout').disabled=!!job||assistantBusy;
     $('#cancel-export').hidden=!job||!!aiControls?.isBusy();
     $('#cancel-ai').hidden=$('#cancel-ai-setup').hidden=!aiControls?.isBusy();
     for(const el of [...root.querySelectorAll('[data-setting]'),...(settingsRoot?.querySelectorAll('[data-setting]')||[])]) el.disabled=!!job;
@@ -64,7 +66,21 @@ export function mountOrganizer(root,{settingsRoot}={}) {
     $('#proposal-summary').textContent=`${proposal.rows.filter(r=>r.included).length} included, ${proposal.rows.filter(r=>!r.included).length} excluded. ${proposal.warnings.join(' ')}`;
     $('#proposal-area').hidden=false;$('#proposal-empty').hidden=true;treeView();buttons();
   }
-  function treeView() {$('#proposal-tree').replaceChildren(renderTree(document,folderTree(session.proposal?.rows.filter(r=>r.included).map(r=>r.targetPath)||[])));}
+  // Before and After side by side. Selecting a file on either side highlights it on both.
+  function treeView() {
+    const rows=session.proposal?.rows||[];
+    $('#proposal-tree').replaceChildren(renderTree(document,folderTree(rows.filter(r=>r.included).map(r=>({path:r.targetPath,id:r.fileId,source:r.sourcePath})))));
+    $('#proposal-before').replaceChildren(...rows.map(row=>{const item=document.createElement('li');item.dataset.fileId=row.fileId;item.tabIndex=0;item.textContent=row.sourcePath;
+      if(!row.included){item.className='before-excluded';const note=document.createElement('span');note.className='tree-from';note.textContent='excluded, stays where it is';item.append(note);}
+      return item;}));
+  }
+  function highlight(event) {
+    if(event.type==='keydown'&&!['Enter',' '].includes(event.key))return;
+    const id=event.target.closest('[data-file-id]')?.dataset.fileId;if(!id)return;event.preventDefault();
+    for(const element of root.querySelectorAll('#proposal-area [data-active]'))delete element.dataset.active;
+    for(const element of root.querySelectorAll(`#proposal-before [data-file-id="${CSS.escape(id)}"], #proposal-tree [data-file-id="${CSS.escape(id)}"]`)){element.dataset.active='true';element.scrollIntoView({block:'nearest'});}
+  }
+  for(const selector of ['#proposal-before','#proposal-tree'])for(const type of ['click','keydown'])listen(selector,type,highlight);
   function selectFiles(files) {
     invalidate();excluded=new Set();
     try {inventory=createInventory(files);inventoryView();status('Files selected. Choose how to organize, then click Organize.');}
@@ -129,7 +145,7 @@ export function mountOrganizer(root,{settingsRoot}={}) {
   listen('#generate-proposal','click',()=>void organize());
   // Redo runs the same settings again; with Local AI the result can differ.
   listen('#redo-proposal','click',()=>void organize());
-  listen('#approve-proposal','click',()=>{try{permit=session.approve();status('Proposal approved. Export organized copies when ready.');}catch(error){permit=null;status(error.message,true);}buttons();});
+  listen('#approve-proposal','click',()=>{try{permit=session.approve();status('Proposal approved. Save organized copies, or reorganize the original folder in place.');}catch(error){permit=null;status(error.message,true);}buttons();});
   async function runExport(mode) {
     if(job||!permit)return;job=new AbortController();buttons();
     try {
@@ -141,10 +157,57 @@ export function mountOrganizer(root,{settingsRoot}={}) {
     }catch(error){if(!closed)status(error.name==='AbortError'?'Folder selection canceled.':error.message,true);}
     finally {job=null;if(!closed)buttons();}
   }
+  // Shows every move and any problems; resolves true only when the user confirms.
+  function review({title,summary,moves,problems=[],confirm}) {
+    const dialog=$('#inplace-review');$('#inplace-review-title').textContent=title;$('#inplace-review-summary').textContent=summary;
+    $('#inplace-review-problems').replaceChildren(...problems.map(text=>Object.assign(document.createElement('li'),{textContent:text})));
+    $('#inplace-review-moves').replaceChildren(...moves.map(move=>{const item=document.createElement('li'),from=document.createElement('span'),to=document.createElement('strong');from.textContent=move.from;to.textContent=move.to;item.append(from,' → ',to);return item;}));
+    $('#inplace-confirm').textContent=confirm;$('#inplace-confirm').hidden=!!problems.length||!moves.length;
+    return new Promise(resolve=>{
+      const done=value=>{$('#inplace-confirm').removeEventListener('click',yes);$('#inplace-cancel').removeEventListener('click',no);dialog.removeEventListener('close',no);if(dialog.open)dialog.close();resolve(value);};
+      const yes=()=>done(true),no=()=>done(false);
+      $('#inplace-confirm').addEventListener('click',yes);$('#inplace-cancel').addEventListener('click',no);dialog.addEventListener('close',no);dialog.showModal();
+    });
+  }
+  async function pickFolder(id) {try{return await window.showDirectoryPicker({id,mode:'readwrite'});}catch{return null;}}
+  const plural=(count,word)=>`${count} ${word}${count===1?'':'s'}`;
+  async function runInPlace() {
+    if(job||!permit)return;job=new AbortController();buttons();
+    try {
+      status('Choose the folder these files came from.');const folder=await pickFolder('sortu-inplace');if(!folder){status('Reorganize canceled. Nothing changed.');return;}
+      status('Checking the folder before anything moves…');const plan=await planInPlace(session,permit,folder);if(closed)return;
+      const summary=plan.problems.length?'Nothing has changed. Fix these first, then try again.':!plan.moves.length?'Every file is already where the proposal puts it.':
+        `${plural(plan.moves.length,'file')} will move inside "${plan.folder}".${plan.unchanged.length?` ${plural(plan.unchanged.length,'file')} already in place.`:''} Each file is copied and checked before the original is removed. ${plan.replacesLog?`The existing ${RESTORE_LOG} is replaced, so the earlier reorganize can no longer be undone.`:`${RESTORE_LOG} is saved in the folder so you can undo this.`}`;
+      if(!await review({title:`Reorganize "${plan.folder}" in place?`,summary,moves:plan.moves,problems:plan.problems,confirm:`Move ${plural(plan.moves.length,'file')}`})){status(plan.problems.length?plan.problems[0]:'Reorganize canceled. Nothing changed.',!!plan.problems.length);return;}
+      const result=await applyInPlace(session,permit,folder,plan,{signal:job.signal,onProgress:p=>status(`Moving ${p.path} (${p.completed+1}/${p.total})`)});if(closed)return;
+      restoreRoot=folder;
+      if(result.state==='done'){inventory=null;excluded.clear();invalidate();inventoryView();$('#organizer-files').value='';$('#organizer-folder').value='';
+        status(`Reorganized ${plural(result.moved.length,'file')} in "${result.folder}". To undo, click Restore original layout.`);}
+      else status(`${result.state==='canceled'?'Canceled':'Stopped'} after moving ${plural(result.moved.length,'file')}. ${result.error||''} The rest were not touched. Restore original layout puts the moved files back.`,true);
+    }catch(error){if(!closed)status(error.message,true);}
+    finally{job=null;if(!closed)buttons();}
+  }
+  async function runRestore() {
+    if(job)return;job=new AbortController();buttons();
+    try {
+      const folder=restoreRoot||await pickFolder('sortu-inplace');if(!folder){status('Restore canceled. Nothing changed.');return;}
+      const log=await readRestoreLog(folder),plan=await planRestore(folder,log);if(closed)return;
+      const skipped=plan.skipped.length?` Skipped: ${plan.skipped.join(' ')}`:'';
+      const summary=plan.moves.length?`${plural(plan.moves.length,'file')} will go back to where they were in "${plan.folder}".${skipped}`:`Nothing to restore in "${plan.folder}".${skipped}`;
+      if(!await review({title:`Restore the original layout of "${plan.folder}"?`,summary,moves:plan.moves,confirm:`Restore ${plural(plan.moves.length,'file')}`})){status('Restore canceled. Nothing changed.');return;}
+      const result=await restoreInPlace(folder,log,plan,{signal:job.signal,onProgress:p=>status(`Restoring ${p.path} (${p.completed+1}/${p.total})`)});if(closed)return;
+      if(result.state==='done'){restoreRoot=null;status(`Restored ${plural(result.restored.length,'file')} to their original places.${skipped}`);}
+      else status(`Stopped after restoring ${plural(result.restored.length,'file')}. ${result.error||''} Click Restore original layout again to continue.`,true);
+    }catch(error){if(!closed)status(error.message,true);}
+    finally{job=null;if(!closed)buttons();}
+  }
+  listen('#reorganize-in-place','click',()=>void runInPlace());listen('#restore-layout','click',()=>void runRestore());
   listen('#export-zip','click',()=>void runExport('zip'));listen('#export-folder','click',()=>void runExport('folder'));
   listen('#cancel-export','click',()=>job?.abort());
   listen('#reset-organizer','click',()=>{inventory=null;excluded.clear();invalidate();inventoryView();releaseDownloadResources('organizer');$('#organizer-files').value='';$('#organizer-folder').value='';status('File selection cleared.');});
   $('#export-folder').hidden=typeof window.showDirectoryPicker!=='function';
+  // Changing the original files needs folder write access: Chrome and Edge on computers, and the portable app.
+  $('#inplace-box').hidden=typeof window.showDirectoryPicker!=='function';
   $('#folder-support').textContent=typeof window.showDirectoryPicker==='function'?'Save copies in a new subfolder on supported Windows browsers, or download a ZIP.':'This browser uses ZIP export. Direct folder saving is unavailable.';
   aiControls=mountAiControls(root,{settingsRoot,onModeChange:modeChanged,onBusy:controller=>{job=controller;buttons();},onStatus:status});
   // The Description box: sets the direction before a proposal, then proposes previewed changes.
