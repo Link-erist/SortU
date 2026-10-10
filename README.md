@@ -1,12 +1,31 @@
 # SortU
 
-A Progressive Web App centered on private file organization, with browser-only LAN file transfer as a secondary workspace. Plain HTML, CSS, and JavaScript with locally bundled ZIP, QR, and hashing libraries. Deployment needs no build step or runtime CDN.
+**Organize, transcribe and share your files privately. Everything runs on your own device, and nothing is uploaded.**
 
-**Live app:** https://sortu-app.vercel.app/
+## Get SortU
+
+| | |
+|---|---|
+| **Use it in your browser** | **[sortu-app.vercel.app](https://sortu-app.vercel.app/)**. Works in Chrome or Edge on a computer, and Chrome on Android. You can install it as an app from the browser. |
+| **Download for Windows** | **[Portable app on the Releases page](https://github.com/Link-erist/SortU/releases/latest)**. One ZIP with the AI models included: unzip, run `SortU.exe`, and it works offline. Nothing is installed; delete the folder to remove it. |
+
+Windows may show "Windows protected your PC" the first time, because the app is not code-signed. Choose **More info**, then **Run anyway**.
+
+## What it does
+
+- **Organization:** sort files or a whole folder by type, date or content (Local AI reads the documents). See every change before and after, then save organized copies or reorganize the folder in place, with undo.
+- **Transcription:** turn audio and video into text, SRT or VTT transcripts with timestamps.
+- **Transfer:** send files to another device over your Wi-Fi, even with the internet off.
+
+---
+
+## For developers
+
+SortU is a Progressive Web App in plain HTML, CSS and JavaScript, with locally bundled ZIP, QR and hashing libraries. Deployment needs no build step or runtime CDN.
 
 **Vercel project:** https://vercel.com/link-erists-projects/sortu-app
 
-The GitHub repository is linked to Vercel, with `main` as the production branch. Pushes to `main` automatically deploy updates.
+The GitHub repository is linked to Vercel, with `main` as the production branch. Pushes to `main` automatically deploy updates. The portable app is built from `desktop/`; see [desktop/README.md](desktop/README.md).
 
 ## Preview locally
 
