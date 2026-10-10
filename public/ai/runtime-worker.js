@@ -8,7 +8,7 @@ import {completeWithRecovery} from './recover.js';
 let engine=null,tokenizer=null,manifest=null,busy=false;
 const nativeFetch=globalThis.fetch.bind(globalThis),nativeOpen=caches.open.bind(caches);
 async function load(offline,progress,files) {
- await engine?.unload();engine=null;tokenizer=null;
+ try{await engine?.unload();}catch{/* A lost GPU device leaves an engine that cannot unload. */}engine=null;tokenizer=null;
  manifest||=await(await nativeFetch(new URL('./model.json',import.meta.url))).json();
  const caps=await checkAiCapabilities(navigator,{secureContext:globalThis.isSecureContext,model:manifest});if(!caps.supported)throw new Error(caps.reason);
  // A saved model folder replaces the network as the byte source; verification is unchanged.
@@ -28,14 +28,18 @@ async function load(offline,progress,files) {
  if(JSON.parse(response.choices[0].message.content).ok!==true)throw new Error('Model warmup did not produce the expected JSON.');await engine.resetChat();
  return {ready:true,offlineVerified:offline,modelId:manifest.modelId,bytes:manifest.totalBytes,downloadedBytes:preparation.bytes,capabilities:caps};
 }
-const complete=request=>completeWithRecovery(engine,()=>engine.reload(manifest.modelId,{context_window_size:4096}),request);
+// After a lost GPU device, wait briefly so the graphics chip can recover, then start a fresh engine.
+const restart=async()=>{await new Promise(resolve=>setTimeout(resolve,2000));await load(true,()=>{});};
+const complete=request=>completeWithRecovery(()=>engine,restart,request);
+// A request after a failed restart loads the model again instead of failing straight away.
+const ensureEngine=async()=>{if(engine&&tokenizer)return;if(!manifest)throw new Error('Prepare or load local AI first.');await restart();};
 self.onmessage=async({data})=>{
  if(data?.v!==1||busy)return;busy=true;const reply=(value)=>self.postMessage({v:1,id:data.id,revision:data.revision,...value});
  try {
   let result;
   if(data.type==='prepare'||data.type==='verifyOffline')result=await load(data.type==='verifyOffline',progress=>reply({type:'progress',progress}),data.type==='prepare'?data.payload?.files:undefined);
   else if(data.type==='generate'&&data.payload?.kind==='assistant'){
-   if(!engine||!tokenizer)throw new Error('Prepare or load local AI first.');
+   await ensureEngine();
    // The master prompt and schema are built here from the assistant core; the page only sends data and the request.
    const core=await import('../assistant/core.js'),{renderPrompt}=await import('./prompts.js');
    const aliases=Array.isArray(data.payload.aliases)?data.payload.aliases.filter(alias=>/^f\d{1,3}$/.test(alias)):[];
@@ -45,7 +49,7 @@ self.onmessage=async({data})=>{
    result={raw:response.choices[0].message.content,usage:response.usage};await engine.resetChat();
   }
   else if(data.type==='generate'){
-   if(!engine||!tokenizer)throw new Error('Prepare or load local AI first.');
+   await ensureEngine();
    const {buildPrompt}=await import('./prompts.js');const prompt=buildPrompt(data.payload,tokenizer);
    const response=await complete({messages:prompt.messages,temperature:0,max_tokens:512,response_format:responseFormat(data.payload.kind,data.payload.kind==='merge'?data.payload.groups.map(group=>group.id):data.payload.entry?.id),seed:0});
    if(response.usage?.prompt_tokens!==prompt.promptTokens)throw new Error(`Tokenizer/runtime token counts differ (${prompt.promptTokens}/${response.usage?.prompt_tokens}).`);
