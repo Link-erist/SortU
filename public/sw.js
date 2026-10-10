@@ -1,5 +1,5 @@
 // Increment APP_VERSION and the matching index.html meta tag together for each release.
-const APP_VERSION = 'v11';
+const APP_VERSION = 'v12';
 const CACHE_PREFIX = 'sortu-';
 const CACHE_NAME = `${CACHE_PREFIX}${APP_VERSION}`;
 const APP_ASSETS = [
@@ -33,6 +33,7 @@ const APP_ASSETS = [
   '/ai/pdf.js',
   '/ai/prompts.js',
   '/ai/runtime-worker.js',
+  '/ai/recover.js',
   '/ai/runtime.js',
   '/ai/schema.js',
   '/ai/transport.js',
